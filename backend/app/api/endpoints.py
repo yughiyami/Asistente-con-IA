@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 
 from app.db.base import get_db
 from app.schemas.schemas import ChatRequest, ChatResponse, ExamCreate, ExamResponse, SubmitExamRequest, ExamResult, GameRequest, GameAction, GameState
-from app.services.ai_service import ai_service
+from backend.app.services.ia import ai_service
 from app.services.image_service import image_service
 import app.models.models as models
 import uuid

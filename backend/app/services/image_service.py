@@ -1,96 +1,112 @@
-import os
-import httpx
-import json
-from typing import List, Dict, Any, Optional
-import logging
-from app.core.config import settings
+"""
+Servicio para búsqueda de imágenes utilizando la API de serper.dev.
+Proporciona funcionalidades para encontrar imágenes relevantes basadas en consultas.
+"""
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+import httpx
+import logging
+from typing import List, Optional, Dict, Any
+from app.config import settings
+
+# Configurar logger
 logger = logging.getLogger(__name__)
 
-class ImageSearchService:
-    def __init__(self):
-        self.api_key = settings.IMAGE_SEARCH_API_KEY
-        self.image_cache = {}  # Simple cache en memoria para reutilizar resultados
+class ImageService:
+    """
+    Servicio para buscar imágenes utilizando serper.dev.
     
-    async def search_images(self, query: str, num_images: int = 3) -> List[Dict[str, Any]]:
-        """Busca imágenes relacionadas con una consulta usando Serper API"""
-        # Versión simplificada - en una implementación real usarías una API de búsqueda de imágenes
+    Proporciona métodos para:
+    - Buscar imágenes basadas en consultas de texto
+    - Extraer URLs de imágenes de las respuestas
+    """
+    
+    def __init__(self):
+        """Inicializa el servicio de imágenes con la configuración global."""
+        self.api_key = settings.SERPER_API_KEY
+        self.base_url = "https://google.serper.dev/images"
+        self.headers = {
+            "X-API-KEY": self.api_key,
+            "Content-Type": "application/json"
+        }
+    
+    async def search_images(self, query: str, num_results: int = 3) -> List[str]:
+        """
+        Busca imágenes utilizando la API de serper.dev.
         
-        # Comprobar caché
-        cache_key = f"{query}_{num_images}"
-        if cache_key in self.image_cache:
-            return self.image_cache[cache_key]
-        
+        Args:
+            query: Consulta de búsqueda
+            num_results: Número máximo de resultados a devolver
+            
+        Returns:
+            Lista de URLs de imágenes
+        """
         try:
-            # Ejemplo con Serper API (se necesita una clave API real)
-            url = "https://google.serper.dev/images"
-            payload = json.dumps({
-                "q": f"computer architecture {query}",
+            # Preparar la consulta - añadir contexto de arquitectura de computadoras
+            search_query = f"{query} computer architecture diagram"
+            
+            # Configurar la solicitud
+            payload = {
+                "q": search_query,
                 "gl": "us",
-                "hl": "en",
-                "num": num_images
-            })
-            headers = {
-                'X-API-KEY': self.api_key,
-                'Content-Type': 'application/json'
+                "hl": "en"
             }
             
+            # Realizar la solicitud
             async with httpx.AsyncClient() as client:
-                response = await client.post(url, headers=headers, data=payload)
+                response = await client.post(
+                    self.base_url,
+                    json=payload,
+                    headers=self.headers,
+                    timeout=10.0
+                )
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    images = []
-                    
-                    for item in data.get("images", [])[:num_images]:
-                        images.append({
-                            "url": item.get("imageUrl"),
-                            "alt_text": item.get("title", query),
-                            "source": item.get("source")
-                        })
-                    
-                    # Guardar en caché
-                    self.image_cache[cache_key] = images
-                    return images
-                else:
-                    logger.error(f"Error al buscar imágenes: {response.status_code} - {response.text}")
-                    return self._get_fallback_images(query, num_images)
-        
+                response.raise_for_status()
+                search_results = response.json()
+            
+            # Extraer URLs de imágenes
+            image_urls = []
+            if "images" in search_results:
+                for image in search_results["images"][:num_results]:
+                    if "imageUrl" in image:
+                        image_urls.append(image["imageUrl"])
+            
+            logger.info(f"Found {len(image_urls)} images for query: {query}")
+            return image_urls
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error searching images: {e.response.status_code}")
+            logger.error(f"Response: {e.response.text}")
+            return []
+            
         except Exception as e:
-            logger.error(f"Error en search_images: {str(e)}")
-            return self._get_fallback_images(query, num_images)
+            logger.error(f"Error searching images: {str(e)}")
+            return []
     
-    def _get_fallback_images(self, query: str, num_images: int = 3) -> List[Dict[str, Any]]:
-        """Proporciona imágenes de respaldo en caso de error"""
-        # En una implementación real podrías tener imágenes locales o usar otra fuente alternativa
+    async def get_images_for_suggestions(self, suggestions: List[Dict[str, str]], max_per_suggestion: int = 1) -> List[str]:
+        """
+        Obtiene imágenes para una lista de sugerencias.
         
-        # Conjunto predefinido de URLs de imágenes para arquitectura de computadoras
-        fallback_images = [
-            {
-                "url": "https://placeholder.com/640x480?text=CPU+Architecture",
-                "alt_text": "Arquitectura CPU",
-                "source": "Placeholder Image"
-            },
-            {
-                "url": "https://placeholder.com/640x480?text=Computer+Memory",
-                "alt_text": "Memoria de computadora",
-                "source": "Placeholder Image"
-            },
-            {
-                "url": "https://placeholder.com/640x480?text=Cache+Memory",
-                "alt_text": "Memoria caché",
-                "source": "Placeholder Image"
-            },
-            {
-                "url": "https://placeholder.com/640x480?text=Computer+Architecture",
-                "alt_text": "Arquitectura de computadoras",
-                "source": "Placeholder Image"
-            }
-        ]
+        Args:
+            suggestions: Lista de sugerencias de imágenes (con campo 'query')
+            max_per_suggestion: Máximo número de imágenes por sugerencia
+            
+        Returns:
+            Lista de URLs de imágenes
+        """
+        all_images = []
         
-        return fallback_images[:num_images]
+        for suggestion in suggestions:
+            query = suggestion.get("query", "")
+            if query:
+                images = await self.search_images(query, max_per_suggestion)
+                all_images.extend(images)
+                
+                # Limitar el número total de imágenes
+                if len(all_images) >= 3:
+                    break
+        
+        return all_images[:3]  # Devolver como máximo 3 imágenes
 
-# Crear instancia global del servicio
-image_service = ImageSearchService()
+
+# Instancia global del servicio
+image_service = ImageService()

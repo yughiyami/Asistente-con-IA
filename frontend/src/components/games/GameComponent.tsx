@@ -7,8 +7,8 @@ import { Game, GameAction } from '@/types';
 import { toast } from 'sonner';
 
 // Importar componentes específicos para cada juego
-//import CacheSimulator from './CacheSimulator';
-///import BinaryConverter from './BinaryConverter';
+//import CacheSimulator from './CacheSimulator'*(PREFERIBLE NO HACER );
+///import BinaryConverter from './BinaryConverter'(MANUAL);
 //import LogicCircuits from './LogicCircuits';
 //import Assembler from './Assembler';
 import Hangman from './Hangman';
