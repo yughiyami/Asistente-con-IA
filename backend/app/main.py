@@ -1,36 +1,62 @@
+"""
+Punto de entrada principal para la aplicación FastAPI del Asistente de Arquitectura de Computadoras.
+Este archivo configura la aplicación FastAPI, registra los routers y middleware necesarios.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import router
-from app.core.config import settings
-from app.db.base import Base, engine
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.staticfiles import StaticFiles
 
-# Crear tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+from app.api.router import api_router
+from app.core.exceptions import register_exception_handlers
+from app.config import settings
 
+# Crear la aplicación FastAPI
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="API para un asistente educativo de arquitectura de computadoras",
-    version="0.1.0"
+    description="API para el Asistente de Aprendizaje de Arquitectura de Computadoras",
+    version="1.0.0",
+    docs_url=None,  # Desactivamos los docs por defecto para personalizarlos
 )
 
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://192.168.56.1:3000",
-        "http://localhost:3000",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir rutas de la API
-app.include_router(router, prefix=settings.API_V1_STR)
+# Registrar manejadores de excepciones
+register_exception_handlers(app)
 
-@app.get("/")
-def read_root():
-    return {"message": "Bienvenido a la API del Asistente de Arquitectura de Computadoras"}
+# Incluir router principal
+app.include_router(api_router, prefix=settings.API_PREFIX)
+
+# Montar carpeta de archivos estáticos (si es necesario)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Personalizar la página de documentación Swagger
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    """Personaliza la interfaz de Swagger UI."""
+    return get_swagger_ui_html(
+        openapi_url=f"{settings.API_PREFIX}/openapi.json",
+        title=f"{settings.PROJECT_NAME} - API Documentation",
+        swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
+        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
+    )
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """Ruta raíz con información básica de la API."""
+    return {
+        "message": "¡Bienvenido al Asistente de Arquitectura de Computadoras!",
+        "version": "1.0.0",
+        "documentation": "/docs",
+    }
 
 if __name__ == "__main__":
     import uvicorn

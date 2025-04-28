@@ -1,0 +1,91 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribución / packaging
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# Archivos de configuración local
+.env
+.env.*
+!.env.example
+
+# Archivos de base de datos
+*.sqlite
+*.db
+*.sql
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Archivos de test / coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Archivos específicos del IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.vs/
+*.sublime-workspace
+*.sublime-project
+
+
+
+# Archivos de configuración de desarrollo
+.python-version
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Archivos específicos de FastAPI
+__version__.py
+
+# Archivos específicos de Node.js (si hay frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnp/
+.pnp.js
+.yarn-integrity
+
+# Archivos específicos de Docker
+.dockerignore
+docker-compose.override.yml
+
+# Otros
+.directory
+*~
