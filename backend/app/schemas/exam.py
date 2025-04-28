@@ -72,7 +72,9 @@ class Question(BaseModel):
                                        description="Alternativas de respuesta",
                                        example={
                                            "a": "La unidad que realiza operaciones aritméticas y lógicas",
-                                           "b": "El componente que almacena temporalmente los datos"
+                                           "b": "El componente que almacena temporalmente los datos",
+                                           "c": "El componente que almacena temporalmente los datos",
+                                           "d": "El componente que almacena temporalmente los datos"
                                        })
 
 
