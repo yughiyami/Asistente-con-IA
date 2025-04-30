@@ -3,21 +3,37 @@
 import { Button } from '@/components/ui/button';
 import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useExamStore } from '@/store/exam';
-import { FiCheckCircle } from 'react-icons/fi'
+import { useEffect, useRef, useState } from 'react';
+import { FiCheckCircle, FiRefreshCw } from 'react-icons/fi'
+import { validateExam } from '../../../services/exam.service';
 
 export default function ResultSummary() {
   // Determinar clase de color según porcentaje
   
   const {
-    points,
-    totalPoints,
+    exam,
+    updateExam,
+    resetIndex,
     // clearExam,
     deleteExam,
   } = useExamStore()
 
+  const [done, setDone] = useState(false)
+  const pending = useRef(false)
+  useEffect(() => {
+    if(pending.current || done) return
+    pending.current = true
+    
+    if(exam && !exam.feedback) validateExam(exam).then((exam) => {
+      updateExam(exam)
+      setDone(true)
+      pending.current = false
+    })
+  },[done, exam, updateExam])
+
   const getScoreClass = () => {
-    if (points * 100 / totalPoints >= 80) return 'text-green-500';
-    if (points * 100 / totalPoints >= 60) return 'text-yellow-500';
+    if ((exam?.score ?? 0) >= 80) return 'text-green-500';
+    if ((exam?.score ?? 0) >= 60) return 'text-yellow-500';
     return 'text-red-500';
   };
 
@@ -25,22 +41,23 @@ export default function ResultSummary() {
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          Resultados
+          {exam?.title}
         </DialogTitle>
         <DialogDescription>
-          Aquí se mostrarán los resultados del examen.
+          {exam?.feedback ?? "Aquí se mostrarán los resultados del examen."}
         </DialogDescription>
         <div className={`flex flex-col items-center justify-center p-4 text-4xl ${getScoreClass()}`}>
-          {points} / {totalPoints}
+          {exam?.score ?? 0} %
         </div>
       </DialogHeader>
       <DialogFooter>
-        {/* <Button
+        <Button
           type="button"
+          onClick={resetIndex}
         >
           <FiRefreshCw className="mr-2" />
-          Reiniciar Examen
-        </Button> */}
+          Revisar resultados
+        </Button>
         <Button
           type="button"
           onClick={deleteExam}

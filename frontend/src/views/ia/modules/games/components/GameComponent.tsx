@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/store';
-import { gameService } from '@/lib/api';
+import { gameService } from '@/views/ia/service/api';
 import { Game, GameAction } from '@/types';
 import { toast } from 'sonner';
 

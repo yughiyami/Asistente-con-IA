@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/store/store';
-import { chatService } from '@/lib/api';
+import { chatService } from '../../services/api';
 import PromptForm from '@/views/ia/components/forms';
 
 export default function MessageInput() {

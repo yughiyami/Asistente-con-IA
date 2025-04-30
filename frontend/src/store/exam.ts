@@ -4,9 +4,7 @@ import { Exam } from '@/types/exam';
 
 // Definir el estado de la aplicación
 interface ExamState {
-  totalPoints: number,
   index: number;
-  points: number;
   exam: Exam | null;
   sessionId: string | null;
   
@@ -14,8 +12,10 @@ interface ExamState {
   answerQuestion: (answer: unknown) => void;
   nextQuestion: () => void;
   setExam: (exam: Exam) => void;
+  updateExam: (exam: Exam) => void;
   deleteExam: () => void;
   clearExam: () => void;
+  resetIndex: () => void
 }
 
 // Crear store
@@ -38,11 +38,7 @@ export const useExamStore = create<ExamState>()(
           if (questionIndex !== -1) {
             updatedExam.questions[questionIndex].chosen_answer = answer;
           }
-          if (updatedExam.questions[questionIndex].correct_answer === answer) {
-            state.points += updatedExam.questions[questionIndex].points 
-          }
           return {
-            points: state.points,
             exam: updatedExam 
           };
         }
@@ -50,24 +46,21 @@ export const useExamStore = create<ExamState>()(
       }),
       setExam: (exam) => set({ 
         index: 0,
-        points: 0,
         exam,
-        totalPoints: 0,
       }),
+      updateExam: (exam) => set({ exam }),
       clearExam: () => set({ exam: null }),
       deleteExam: () => set({ exam: null }),
+      resetIndex: () => set({ index: 0 }),
       nextQuestion: () => set((state) => {
         if (state.exam) {
-          const totalPoints = state.totalPoints + state.exam.questions?.[state.index]?.points;
           const nextIndex = state.index + 1;
           if (nextIndex < state.exam.questions.length) {
             return {
-              totalPoints, 
               index: nextIndex 
             };
           } else {
             return { 
-              totalPoints,
               index: -1 
             }; // Indica que no hay más preguntas
           }

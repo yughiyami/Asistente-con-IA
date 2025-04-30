@@ -1,3 +1,5 @@
+import { MultipleChoiceOption } from "./exam";
+
 // Tipos generales
 export interface User {
     id: string;
@@ -40,18 +42,21 @@ export interface User {
   // Tipos para Exámenes
   export interface Question {
     id: string;
-    question_text: string;
-    question_type: 'multiple_choice' | 'open_ended';
-    options?: string[];
-    points: number;
+    text: string;
+    // question_type: 'multiple_choice' //| 'open_ended';
+    alternatives: {
+      [key: string]: string
+    }
+    //points: number;
   }
   
   export interface Exam {
-    id: string;
+    exam_id: string;
     title: string;
-    description?: string;
-    topic: string;
-    difficulty: string;
+    // description?: string;
+    // topic: string;
+    // difficulty: string;
+    time_limit_minutes: number;
     questions: Question[];
   }
   
@@ -61,21 +66,22 @@ export interface User {
   }
   
   export interface ExamResult {
-    exam_id: string;
+    // exam_id: string;
     score: number;
-    total_points: number;
-    percentage: number;
-    question_results: QuestionResult[];
+    // total_points: number;
+    // percentage: number;
+    question_results: Record<string, QuestionResult> //QuestionResult[];
     feedback: string;
+    time_taken_seconds: number;
   }
   
   export interface QuestionResult {
-    question_id: string;
-    correct: boolean;
-    points_earned: number;
-    points_possible: number;
-    user_answer: string | number;
-    correct_answer?: string | number;
+    // question_id: string;
+    is_correct: boolean;
+    // points_earned: number;
+    // points_possible: number;
+    // user_answer: string | number;
+    correct_answer?: string //| number;
     explanation?: string;
   }
   

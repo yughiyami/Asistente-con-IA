@@ -1,10 +1,9 @@
 'use client';
 import { useAppStore } from '@/store/store';
-import { chatService } from '@/lib/api';
 import PromptForm from '@/views/ia/components/forms';
 import { toast } from 'sonner';
 import { useExamStore } from '@/store/exam';
-import { makeExam } from '../../services/exam.service';
+import { generateExam, makeExam } from '../../services/exam.service';
 import { examTest } from '../../test/exam';
 export default function MessageInput() {
   
@@ -39,16 +38,16 @@ export default function MessageInput() {
     
     try {
       // Enviar mensaje al backend
-      const response = await chatService.sendMessage({
-        message: input,
-        session_id: sessionId || undefined,
-        mode: mode,
+      const exam = await generateExam({
+        topic: input,
+        difficulty: "medium",
+        num_questions: 7
       });
       
-      // Guardar ID de sesión si no existe
-      if (!sessionId && response.special_content?.session_id) {
-        setSessionId(response.special_content.session_id);
-      }
+      // // Guardar ID de sesión si no existe
+      // if (!sessionId && response.special_content?.session_id) {
+      //   setSessionId(response.special_content.session_id);
+      // }
       
       // Crear mensaje del asistente
       const assistantMessage = {
@@ -65,7 +64,7 @@ export default function MessageInput() {
       
       // Añadir respuesta a la UI
       addMessage(assistantMessage);
-      setExam(await makeExam(examTest))
+      setExam(exam)
       // toast.success('Examen insertado con éxito!')
       
     } catch (error) {

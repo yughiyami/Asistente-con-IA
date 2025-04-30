@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '@/store/store';
-import { chatService } from '@/lib/api';
+import { chatService } from '@/views/ia/service/api';
 import { FiSend, FiX } from 'react-icons/fi';
 import { Toaster, toast } from 'sonner';
 

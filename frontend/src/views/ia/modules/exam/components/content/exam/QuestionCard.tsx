@@ -51,6 +51,7 @@ export default function QuestionCard({ question }: QuestionCardProps) {
       answerQuestion(answer);
     }
   }
+  console.log(question)
   
   return (
     <DialogContent>
@@ -59,11 +60,15 @@ export default function QuestionCard({ question }: QuestionCardProps) {
           {question.question}
         </DialogTitle>
         <DialogDescription>
-          {question.points} puntos
+          {question.explanation ?? "Aquí se mostrará la explicación de la pregunta al finalizar el examen."}
         </DialogDescription>
           {
             question.type === 'multiple-choice' ? 
-              <MultipleChoice options={question.options ?? []} handler={setAnswer} /> :
+              <MultipleChoice options={question.options ?? []} 
+                handler={setAnswer} 
+                correctAnswer={question.correct_answer as string} 
+                chosenAnswer={question.chosen_answer as string}
+              /> :
             question.type === 'true-false' ?
               <TrueFalse handler={setAnswer}/> :
             ""
