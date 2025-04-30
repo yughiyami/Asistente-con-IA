@@ -55,13 +55,17 @@ async def generate_exam(
         Formato para cada pregunta:
         "P[número]: [texto de la pregunta]
         a) [alternativa a]
-        b) [alternativa b]"
+        b) [alternativa b]
+        c) [alternativa c]
+        d) [alternativa d]"
         
         Al final, proporciona las respuestas correctas en formato JSON:
         "{{
             "answers": {{
                 "1": "a",
                 "2": "b",
+                "3": "b",
+                "4": "d",
                 ...
             }},
             "explanations": {{
@@ -120,7 +124,10 @@ async def generate_exam(
                         alternatives["a"] = alt_line[2:].strip()
                     elif alt_line.startswith("b)"):
                         alternatives["b"] = alt_line[2:].strip()
-                
+                    elif alt_line.startswith("c)"):
+                        alternatives["c"] = alt_line[2:].strip()
+                    elif alt_line.startswith("d)"):
+                        alternatives["d"] = alt_line[2:].strip()
                 # Verificar que haya al menos dos alternativas
                 if len(alternatives) < 2:
                     logger.warning(f"La pregunta {q_num} no tiene suficientes alternativas")
@@ -152,7 +159,7 @@ async def generate_exam(
             logger.error(f"Error al extraer respuestas: {str(e)}")
             # Generar respuestas aleatorias para demostración
             import random
-            correct_answers = {f"{i}": random.choice(["a", "b"]) for i in range(1, len(questions) + 1)}
+            correct_answers = {f"{i}": random.choice(["a", "b","c","d"]) for i in range(1, len(questions) + 1)}
         
         # Crear ID único para el examen
         exam_id = f"exam_{uuid.uuid4().hex}"
