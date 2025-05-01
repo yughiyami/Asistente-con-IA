@@ -44,7 +44,7 @@ export default function MessageInput() {
       // Crear mensaje del asistente
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
-        content: response.text,
+        content: response.message,
         role: 'assistant' as const,
         timestamp: new Date().toISOString(),
         images: response.images,

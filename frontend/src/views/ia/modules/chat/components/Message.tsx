@@ -92,9 +92,9 @@ export default function Message({ message }: MessageProps) {
                     onClick={() => setImageExpanded(image.url)} 
                     className="block w-full relative rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700"
                   >
-                    <Image 
-                      src={image.url} 
-                      alt={image.alt_text} 
+                    <img 
+                      src={image} 
+                      alt={"Imagen de respuesta"} 
                       width={200} 
                       height={150} 
                       className="w-full h-32 object-cover" 

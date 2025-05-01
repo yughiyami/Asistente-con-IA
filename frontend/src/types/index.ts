@@ -1,4 +1,4 @@
-import { MultipleChoiceOption } from "./exam";
+// import { MultipleChoiceOption } from "./exam";
 
 // Tipos generales
 export interface User {
@@ -15,11 +15,13 @@ export interface User {
     specialContent?: SpecialContent;
   }
   
-  export interface ImageInfo {
-    url: string;
-    alt_text: string;
-    source?: string;
-  }
+  export type ImageInfo = 
+  // {
+  //   url: string;
+  //   alt_text: string;
+  //   source?: string;
+  // }
+  string
   
   export interface SpecialContent {
     type: 'exam' | 'game' | 'diagram' | 'chat';  // Add 'chat' as a valid type
@@ -34,7 +36,7 @@ export interface User {
   }
   
   export interface ChatResponse {
-    text: string;
+    message: string;
     images?: ImageInfo[];
     special_content?: any;
   }
