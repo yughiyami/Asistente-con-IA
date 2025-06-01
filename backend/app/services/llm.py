@@ -6,8 +6,8 @@ Gestiona las solicitudes al modelo LLM y procesa las respuestas.
 import json
 import logging
 import re
-from typing import Dict, List, Any, Optional, Tuple
-
+from typing import Dict, List, Any, Optional, Tuple , Union
+from datetime import datetime
 import google.generativeai as genai
 
 from app.config import settings
@@ -711,7 +711,1371 @@ ni la palabra "json" antes o después del objeto JSON.
         }
         
         return hints.get(word, "Un concepto de arquitectura de computadoras")
+    def _get_improved_system_prompt(self) -> str:
+        """Genera un prompt de sistema mejorado para juegos educativos."""
+        return """
+        Eres un asistente especializado en crear contenido educativo para arquitectura de computadoras.
+
+        REGLAS CRÍTICAS:
+        1. NUNCA uses respuestas genéricas o por defecto
+        2. TODAS las respuestas deben limitarse a 100 palabras MÁXIMO
+        3. Sé específico y técnicamente preciso
+        4. Enfócate en conceptos de arquitectura de computadoras
+        5. Adapta la dificultad al nivel solicitado
+        6. Proporciona contenido original y educativo
+
+        ESPECIALIDADES:
+        - Procesadores y microarquitectura
+        - Sistemas de memoria y cache
+        - Entrada/salida y buses
+        - Lenguaje ensamblador
+        - Lógica digital y compuertas
+
+        FORMATO DE RESPUESTAS:
+        - Conciso pero informativo
+        - Técnicamente correcto
+        - Educativamente valioso
+        - Sin información irrelevante
+        """
+    
+    async def generate_hangman_word(
+        self, 
+        difficulty: str, 
+        topic: str, 
+        word_length_range: Tuple[int, int]
+    ) -> Dict[str, str]:
+        """
+        Genera una palabra específica para el juego de ahorcado.
+        
+        Args:
+            difficulty: Nivel de dificultad
+            topic: Tema específico
+            word_length_range: Rango de longitud de palabra
+            
+        Returns:
+            Diccionario con palabra, pista y explicación
+        """
+        min_len, max_len = word_length_range
+        
+        prompt = f"""
+        Genera UNA palabra técnica para ahorcado en arquitectura de computadoras.
+        
+        ESPECIFICACIONES:
+        - Tema: {topic}
+        - Dificultad: {difficulty}
+        - Longitud: {min_len}-{max_len} caracteres
+        - Solo letras, sin espacios ni guiones
+        
+        RESPUESTA MÁXIMO 100 PALABRAS.
+        
+        JSON esperado:
+        {{
+          "word": "PALABRA_EXACTA",
+          "clue": "Pista específica (máximo 30 palabras)",
+          "argument": "Explicación técnica (máximo 40 palabras)"
+        }}
+        
+        EVITA respuestas genéricas. Sé específico sobre {topic}.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "top_p": 0.9,
+                    "max_output_tokens": 300
+                }
+            )
+            
+            # Extraer y validar JSON
+            result = await self.extract_json_from_text(response.text)
+            
+            # Validaciones específicas
+            word = result.get("word", "").upper()
+            if not word or not word.isalpha() or len(word) < min_len or len(word) > max_len:
+                raise ValueError("Palabra no válida generada")
+            
+            return {
+                "word": word,
+                "clue": result.get("clue", "")[:100],  # Limitar clue
+                "argument": result.get("argument", "")[:100]  # Limitar explicación
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generando palabra para ahorcado: {str(e)}")
+            # Respuesta de respaldo específica
+            return self._get_fallback_hangman_word(difficulty, topic, word_length_range)
+    
 
 
+    
+
+    async def _generate_simple_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Genera circuito simple para nivel easy - MEJORADO CON DIVERSIDAD."""
+        
+        # Patrones educativos específicos para easy
+        educational_patterns = [
+            "detector de entradas iguales",
+            "selector de mayoría simple", 
+            "inversor condicional",
+            "puerta de activación dual",
+            "filtro de señales básico"
+        ]
+        
+        import random
+        selected_pattern = random.choice(educational_patterns)
+        
+        prompt = f"""
+        Diseña un circuito lógico EDUCATIVO específico para estudiantes.
+        
+        ESPECIFICACIONES OBLIGATORIAS:
+        - Propósito: {selected_pattern}
+        - Compuertas: {gates_count} (USAR TIPOS DIFERENTES)
+        - Entradas iniciales: {inputs_count}
+        - Resultado: DEBE ser educativo y demostrar un concepto específico
+        
+        VARIEDAD OBLIGATORIA:
+        - NO uses solo AND/OR básicas
+        - Incluye compuertas como XOR, NAND, NOR según el propósito
+        - Entradas deben demostrar diferentes comportamientos
+        - Salida debe ser 0 O 1 (no siempre 1)
+        
+        RESPUESTA MÁXIMO 80 PALABRAS.
+        
+        JSON esperado:
+        {{
+          "pattern": ["NAND", "XOR"],
+          "input_values": [
+            [1, 1, 0],
+            [0, 1, 1]
+          ],
+          "expected_output": 1,
+          "complexity_type": "single_output",
+          "description": "Descripción técnica específica del propósito"
+        }}
+        
+        IMPORTANTE: Crea un circuito que demuestre un concepto específico de lógica digital.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.7,  # Aumentar creatividad
+                    "top_p": 0.9,
+                    "top_k": 50,
+                    "max_output_tokens": 400
+                }
+            )
+            
+            result = await self.extract_json_from_text(response.text)
+            result["complexity_type"] = "single_output"
+            
+            # Validar diversidad
+            pattern = result.get("pattern", [])
+            if len(set(pattern)) < max(1, len(pattern) - 1):  # Al menos diferentes tipos
+                logger.warning("Patrón poco diverso, usando fallback variado")
+                return self._get_diverse_fallback_simple(difficulty, gates_count, inputs_count)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error generando circuito simple diverso: {str(e)}")
+            return self._get_diverse_fallback_simple(difficulty, gates_count, inputs_count)
+    
+    async def _generate_multiple_cases_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int,
+        cases_count: int
+    ) -> Dict[str, Any]:
+        """Genera circuito con múltiples casos para nivel medium - DIVERSIDAD MEJORADA."""
+        
+        # Conceptos educativos específicos para medium
+        advanced_concepts = [
+            "decodificador de 2 bits",
+            "comparador de magnitud",
+            "detector de paridad par/impar", 
+            "multiplexor básico 2:1",
+            "generador de código Gray",
+            "detector de secuencia específica"
+        ]
+        
+        import random
+        selected_concept = random.choice(advanced_concepts)
+        
+        prompt = f"""
+        Diseña un circuito lógico AVANZADO que implemente: {selected_concept}
+        
+        ESPECIFICACIONES OBLIGATORIAS:
+        - Concepto: {selected_concept}
+        - Compuertas: {gates_count} (TIPOS VARIADOS obligatorio)
+        - Casos de prueba: {cases_count} (ENTRADAS DIFERENTES)
+        - Cada caso debe mostrar un comportamiento único del circuito
+        
+        DIVERSIDAD OBLIGATORIA:
+        - Usa compuertas: XOR, NAND, NOR, NOT (no solo AND/OR)
+        - Entradas iniciales DIFERENTES para cada caso
+        - Salidas VARIADAS (no todas iguales)
+        - Demuestra el concepto técnico claramente
+        
+        RESPUESTA MÁXIMO 120 PALABRAS.
+        
+        JSON esperado:
+        {{
+          "pattern": ["XOR", "NAND", "OR"],
+          "test_cases": [
+            {{
+              "case_id": "case1",
+              "input_values": [[0, 0, 0], [0, 1, 1], [1, 1, 1]],
+              "expected_output": 1
+            }},
+            {{
+              "case_id": "case2", 
+              "input_values": [[1, 0, 1], [1, 0, 0], [0, 1, 1]],
+              "expected_output": 0
+            }},
+            {{
+              "case_id": "case3",
+              "input_values": [[1, 1, 1], [1, 0, 1], [1, 0, 1]], 
+              "expected_output": 1
+            }}
+          ],
+          "expected_output": {{"case1": 1, "case2": 0, "case3": 1}},
+          "complexity_type": "multiple_cases",
+          "description": "Implementación técnica de {selected_concept}"
+        }}
+        
+        CRÍTICO: Las salidas deben ser DIFERENTES para demostrar el concepto. NO todas 1 o todas 0.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.8,  # Alta creatividad
+                    "top_p": 0.95,
+                    "top_k": 60,
+                    "max_output_tokens": 600
+                }
+            )
+            
+            result = await self.extract_json_from_text(response.text)
+            result["complexity_type"] = "multiple_cases"
+            
+            # Validar diversidad en las salidas
+            expected_output = result.get("expected_output", {})
+            if isinstance(expected_output, dict):
+                unique_outputs = set(expected_output.values())
+                if len(unique_outputs) < 2:  # Al menos 2 salidas diferentes
+                    logger.warning("Salidas poco diversas, usando fallback variado")
+                    return self._get_diverse_fallback_multiple_cases(difficulty, gates_count, cases_count)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error generando circuito múltiples casos diverso: {str(e)}")
+            return self._get_diverse_fallback_multiple_cases(difficulty, gates_count, cases_count)
+    
+    async def _generate_pattern_analysis_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Genera circuito con análisis de patrones para nivel hard - COMPLEJIDAD REAL."""
+        
+        # Patrones complejos para hard
+        complex_patterns = [
+            "contador binario cíclico",
+            "generador de secuencia Fibonacci módulo 2",
+            "máquina de estados de 4 estados",
+            "detector de palindromo binario",
+            "generador de números primos módulo 2",
+            "secuencia pseudo-aleatoria simple"
+        ]
+        
+        import random
+        selected_pattern = random.choice(complex_patterns)
+        
+        prompt = f"""
+        Diseña un circuito lógico COMPLEJO que implemente: {selected_pattern}
+        
+        ESPECIFICACIONES AVANZADAS:
+        - Sistema: {selected_pattern}
+        - Compuertas: {gates_count} (MÁXIMA VARIEDAD)
+        - Debe generar una secuencia de 8 valores que demuestre el patrón
+        - Análisis requerido: patrón, ciclo, estado final
+        
+        COMPLEJIDAD OBLIGATORIA:
+        - Usa todas las compuertas: XOR, NAND, NOR, NOT, AND, OR
+        - Secuencia debe mostrar un patrón matemático/lógico real
+        - Ciclo debe ser detectable (longitud 2, 3, 4, etc.)
+        - Estado final debe ser calculable
+        
+        RESPUESTA MÁXIMO 150 PALABRAS.
+        
+        JSON esperado:
+        {{
+          "pattern": ["XOR", "NAND", "NOR", "NOT"],
+          "sequence_inputs": [
+            [1, 0], [0, 1], [1, 1], [0, 0], [1, 0], [0, 1], [1, 1], [0, 0]
+          ],
+          "pattern_analysis": {{
+            "sequence": [1, 0, 0, 1, 1, 0, 0, 1],
+            "pattern_type": "repeating",
+            "cycle_length": 4,
+            "final_state": 1,
+            "frequency": {{"0": 4, "1": 4}}
+          }},
+          "expected_output": {{
+            "pattern": [1, 0, 0, 1, 1, 0, 0, 1],
+            "final_state": 1,
+            "cycle_length": 4
+          }},
+          "complexity_type": "pattern_analysis",
+          "description": "Implementación de {selected_pattern} con análisis matemático"
+        }}
+        
+        OBLIGATORIO: El patrón debe ser matemáticamente coherente y educativo.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.9,  # Máxima creatividad
+                    "top_p": 0.95,
+                    "top_k": 80,
+                    "max_output_tokens": 800
+                }
+            )
+            
+            result = await self.extract_json_from_text(response.text)
+            result["complexity_type"] = "pattern_analysis"
+            
+            # Validar complejidad del patrón
+            pattern_data = result.get("pattern_analysis", {})
+            sequence = pattern_data.get("sequence", [])
+            
+            if len(set(sequence)) < 2 or len(sequence) < 6:  # Muy simple
+                logger.warning("Patrón demasiado simple, usando fallback complejo")
+                return self._get_diverse_fallback_pattern_analysis(difficulty, gates_count)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error generando circuito de análisis complejo: {str(e)}")
+            return self._get_diverse_fallback_pattern_analysis(difficulty, gates_count)
+    
+    # Fallbacks diversos mejorados
+    
+    def _get_diverse_fallback_simple(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Fallbacks diversos para circuito simple."""
+        fallbacks = [
+            {
+                "pattern": ["NAND", "XOR"],
+                "input_values": [[1, 1, 0], [0, 1, 1]],
+                "expected_output": 1,
+                "description": "Detector NAND-XOR: activo cuando entradas son diferentes después de NAND"
+            },
+            {
+                "pattern": ["NOR", "AND"],
+                "input_values": [[0, 1, 0], [0, 0, 0]],
+                "expected_output": 0,
+                "description": "Filtro NOR-AND: bloquea la mayoría de señales"
+            },
+            {
+                "pattern": ["XOR", "NOT"],
+                "input_values": [[1, 0, 1], [1, 0]],
+                "expected_output": 0,
+                "description": "Inversor XOR: invierte resultado de diferencia"
+            }
+        ]
+        
+        import random
+        selected = random.choice(fallbacks)
+        selected["complexity_type"] = "single_output"
+        return selected
+    
+    def _get_diverse_fallback_multiple_cases(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        cases_count: int
+    ) -> Dict[str, Any]:
+        """Fallbacks diversos para múltiples casos."""
+        fallbacks = [
+            {
+                "pattern": ["XOR", "NAND", "OR"],
+                "test_cases": [
+                    {"case_id": "case1", "input_values": [[0, 1, 1], [1, 0, 0], [0, 1, 1]], "expected_output": 1},
+                    {"case_id": "case2", "input_values": [[1, 0, 1], [1, 0, 0], [0, 0, 0]], "expected_output": 0},
+                    {"case_id": "case3", "input_values": [[1, 1, 0], [0, 1, 1], [1, 0, 1]], "expected_output": 1}
+                ],
+                "expected_output": {"case1": 1, "case2": 0, "case3": 1},
+                "description": "Detector de paridad complejo con casos variados"
+            },
+            {
+                "pattern": ["NOR", "XOR", "AND"],
+                "test_cases": [
+                    {"case_id": "case1", "input_values": [[0, 0, 1], [1, 1, 0], [0, 1, 0]], "expected_output": 0},
+                    {"case_id": "case2", "input_values": [[1, 1, 0], [0, 0, 0], [0, 1, 0]], "expected_output": 0},
+                    {"case_id": "case3", "input_values": [[0, 1, 0], [0, 1, 1], [1, 0, 1]], "expected_output": 1}
+                ],
+                "expected_output": {"case1": 0, "case2": 0, "case3": 1},
+                "description": "Filtro selectivo NOR-XOR-AND con diferentes comportamientos"
+            }
+        ]
+        
+        import random
+        selected = random.choice(fallbacks)
+        selected["complexity_type"] = "multiple_cases"
+        return selected
+    
+    def _get_diverse_fallback_pattern_analysis(
+        self, 
+        difficulty: str, 
+        gates_count: int
+    ) -> Dict[str, Any]:
+        """Fallbacks diversos para análisis de patrones."""
+        fallbacks = [
+            {
+                "pattern": ["XOR", "NAND", "NOR", "NOT"],
+                "sequence_inputs": [[1, 0], [0, 1], [1, 1], [0, 0], [1, 0], [0, 1]],
+                "expected_output": {
+                    "pattern": [1, 0, 0, 1, 1, 0],
+                    "final_state": 0,
+                    "cycle_length": 3
+                },
+                "description": "Contador ternario con secuencia 1-0-0 repetitiva"
+            },
+            {
+                "pattern": ["NAND", "XOR", "OR", "NOT"],
+                "sequence_inputs": [[0, 1], [1, 0], [0, 0], [1, 1], [0, 1], [1, 0]],
+                "expected_output": {
+                    "pattern": [0, 1, 1, 0, 0, 1],
+                    "final_state": 1,
+                    "cycle_length": 2
+                },
+                "description": "Generador de paridad alternante con patrón 0-1-1-0"
+            }
+        ]
+        
+        import random
+        selected = random.choice(fallbacks)
+        selected["complexity_type"] = "pattern_analysis"
+        return selected
+    # Métodos de fallback específicos
+    
+    def _get_fallback_simple_circuit_new(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para circuito simple."""
+        return {
+            "pattern": ["AND", "OR"],
+            "input_values": [
+                [1, 1, 1],
+                [1, 0, 1]
+            ],
+            "expected_output": 1,
+            "complexity_type": "single_output",
+            "description": "Circuito AND seguido de OR"
+        }
+    
+    def _get_fallback_multiple_cases_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        cases_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para múltiples casos."""
+        return {
+            "pattern": ["AND", "XOR", "OR"],
+            "test_cases": [
+                {
+                    "case_id": "case1",
+                    "input_values": [[1, 1, 1], [1, 0, 1], [1, 1, 1]],
+                    "expected_output": 1
+                },
+                {
+                    "case_id": "case2",
+                    "input_values": [[0, 1, 0], [0, 1, 1], [1, 0, 1]],
+                    "expected_output": 1
+                },
+                {
+                    "case_id": "case3",
+                    "input_values": [[1, 0, 0], [0, 1, 1], [1, 1, 1]],
+                    "expected_output": 1
+                }
+            ],
+            "expected_output": {"case1": 1, "case2": 1, "case3": 1},
+            "complexity_type": "multiple_cases",
+            "description": "Circuito evaluado con múltiples casos"
+        }
+    
+    def _get_fallback_pattern_analysis_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para análisis de patrones."""
+        return {
+            "pattern": ["XOR", "AND", "OR", "NOT"],
+            "sequence_inputs": [
+                [1, 0], [0, 1], [1, 1], [0, 0]
+            ],
+            "pattern_analysis": {
+                "sequence": [1, 0, 1, 0, 1, 0, 1, 0],
+                "pattern_type": "alternating",
+                "cycle_length": 2,
+                "final_state": 0,
+                "frequency": {"0": 4, "1": 4}
+            },
+            "expected_output": {
+                "pattern": [1, 0, 1, 0, 1, 0, 1, 0],
+                "final_state": 0,
+                "cycle_length": 2
+            },
+            "complexity_type": "pattern_analysis",
+            "description": "Circuito que genera patrón alternante"
+        }
+    
+    async def generate_assembly_exercise(
+        self, 
+        difficulty: str, 
+        architecture: str, 
+        error_type: str,
+        instructions_count: int
+    ) -> Dict[str, str]:
+        """
+        Genera ejercicio de ensamblador con código errado específico.
+        
+        Args:
+            difficulty: Nivel de dificultad
+            architecture: Arquitectura objetivo
+            error_type: Tipo de error a incluir
+            instructions_count: Número de instrucciones
+            
+        Returns:
+            Código errado con información del error
+        """
+        prompt = f"""
+        Crea código ensamblador CON ERROR ESPECÍFICO para arquitectura de computadoras.
+        
+        ESPECIFICACIONES:
+        - Arquitectura: {architecture}
+        - Dificultad: {difficulty}
+        - Tipo de error: {error_type}
+        - Instrucciones: {instructions_count}
+        
+        RESPUESTA MÁXIMO 100 PALABRAS.
+        
+        Crea código que:
+        - Tenga un propósito educativo claro
+        - Contenga UN error específico del tipo {error_type}
+        - Sea realista y educativo
+        - No sea genérico ni trivial
+        
+        JSON esperado:
+        {{
+          "buggy_code": "código con error específico",
+          "expected_behavior": "qué debería hacer (máximo 25 palabras)",
+          "hint": "pista específica sobre el error (máximo 20 palabras)",
+          "error_explanation": "explicación técnica del error para evaluación"
+        }}
+        
+        EVITA ejemplos triviales. Crea código con propósito educativo real.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "top_p": 0.9,
+                    "max_output_tokens": 400
+                }
+            )
+            
+            result = await self.extract_json_from_text(response.text)
+            
+            # Validar que el código no sea trivial
+            code = result.get("buggy_code", "")
+            if not code or len(code.split('\n')) < 2:
+                raise ValueError("Código generado es demasiado simple")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error generando ejercicio de ensamblador: {str(e)}")
+            return self._get_fallback_assembly_exercise(difficulty, architecture, error_type)
+    
+    async def explain_logic_circuit(
+        self, 
+        circuit_description: str,
+        gates_sequence: List[str],
+        test_input: List[int],
+        expected_output: int,
+        user_answer: int
+    ) -> str:
+        """
+        Genera explicación específica sobre el funcionamiento de un circuito lógico.
+        
+        Args:
+            circuit_description: Descripción del circuito
+            gates_sequence: Secuencia de compuertas
+            test_input: Entrada de prueba
+            expected_output: Salida esperada
+            user_answer: Respuesta del usuario
+            
+        Returns:
+            Explicación técnica específica
+        """
+        correct = "correcta" if user_answer == expected_output else "incorrecta"
+        
+        prompt = f"""
+        Explica ESPECÍFICAMENTE cómo funciona este circuito lógico.
+        
+        CIRCUITO: {circuit_description}
+        COMPUERTAS: {gates_sequence}
+        ENTRADA: {test_input}
+        SALIDA ESPERADA: {expected_output}
+        RESPUESTA USUARIO: {user_answer} ({correct})
+        
+        RESPUESTA MÁXIMO 100 PALABRAS.
+        
+        Explica:
+        1. Cómo se evalúa paso a paso
+        2. Por qué la salida es {expected_output}
+        3. Corrección específica si el usuario erró
+        
+        NO uses explicaciones genéricas. Sé específico sobre ESTE circuito.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "max_output_tokens": 300
+                }
+            )
+            
+            return response.text[:400]  # Limitar respuesta
+            
+        except Exception as e:
+            logger.error(f"Error explicando circuito: {str(e)}")
+            return f"Este circuito {circuit_description.lower()} evalúa la entrada {test_input} produciendo {expected_output}."
+    
+
+    async def explain_complex_logic_circuit(
+        self, 
+        pattern_data: Dict[str, Any],
+        user_answer: Union[int, Dict[str, Any]],
+        expected_output: Union[int, Dict[str, Any]],
+        evaluation_result: Dict[str, Any],
+        complexity_type: str
+    ) -> str:
+        """
+        Explica circuitos lógicos con complejidad variable según dificultad.
+        
+        Args:
+            pattern_data: Datos del patrón del circuito
+            user_answer: Respuesta del usuario
+            expected_output: Salida esperada
+            evaluation_result: Resultado de la evaluación
+            complexity_type: Tipo de complejidad
+            
+        Returns:
+            Explicación específica según la complejidad
+        """
+        correct = evaluation_result.get("correct", False)
+        correct_text = "correcta" if correct else "incorrecta"
+        
+        if complexity_type == "single_output":
+            return await self._explain_simple_circuit(
+                pattern_data, user_answer, expected_output, correct_text
+            )
+        
+        elif complexity_type == "multiple_cases":
+            return await self._explain_multiple_cases_circuit(
+                pattern_data, user_answer, expected_output, evaluation_result
+            )
+        
+        elif complexity_type == "pattern_analysis":
+            return await self._explain_pattern_analysis_circuit(
+                pattern_data, user_answer, expected_output, evaluation_result
+            )
+        
+        else:
+            return f"Respuesta {correct_text}. Análisis del circuito no disponible."
+    
+    async def generate_simple_logic_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """
+        Método de compatibilidad para generar circuito simple.
+        Redirige al método complejo con configuración simple.
+        """
+        complexity_config = {
+            "complexity_type": "single_output",
+            "cases_count": 1,
+            "question_template": "¿Cuál es la salida final del circuito?"
+        }
+        
+        try:
+            return await self.generate_complex_logic_circuit(
+                difficulty=difficulty,
+                gates_count=gates_count,
+                inputs_count=inputs_count,
+                complexity_config=complexity_config
+            )
+        except Exception as e:
+            logger.error(f"Error en compatibilidad de circuito simple: {str(e)}")
+            # Fallback directo
+            return self._get_fallback_simple_circuit_new(difficulty, gates_count, inputs_count)
+
+    async def _explain_simple_circuit(
+        self,
+        pattern_data: Dict[str, Any],
+        user_answer: int,
+        expected_output: int,
+        correct_text: str
+    ) -> str:
+        """Explica circuito simple (easy)."""
+        pattern = pattern_data.get("pattern", [])
+        input_values = pattern_data.get("input_values", [])
+        
+        steps_description = []
+        for i, (gate, values) in enumerate(zip(pattern, input_values)):
+            inputs = values[:-1]
+            output = values[-1]
+            steps_description.append(f"{gate}({','.join(map(str, inputs))})={output}")
+        
+        steps_text = "; ".join(steps_description)
+        
+        prompt = f"""
+        Explica BREVEMENTE este circuito simple.
+        
+        PASOS: {steps_text}
+        RESPUESTA USUARIO: {user_answer} ({correct_text})
+        RESPUESTA CORRECTA: {expected_output}
+        
+        RESPUESTA MÁXIMO 80 PALABRAS.
+        
+        Explica paso a paso y por qué la respuesta es {expected_output}.
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "max_output_tokens": 250
+                }
+            )
+            return response.text[:300]
+        except:
+            return f"Circuito ejecuta: {steps_text}. Salida correcta: {expected_output}."
+    
+    async def _explain_multiple_cases_circuit(
+        self,
+        pattern_data: Dict[str, Any],
+        user_answer: Dict[str, Any],
+        expected_output: Dict[str, Any],
+        evaluation_result: Dict[str, Any]
+    ) -> str:
+        """Explica circuito con múltiples casos (medium)."""
+        pattern = pattern_data.get("pattern", [])
+        test_cases = pattern_data.get("test_cases", [])
+        partial_score = evaluation_result.get("partial_score", 0.0)
+        case_results = evaluation_result.get("case_results", {})
+        
+        prompt = f"""
+        Explica este circuito con múltiples casos de prueba.
+        
+        COMPUERTAS: {pattern}
+        CASOS: {len(test_cases)}
+        PUNTUACIÓN: {partial_score:.1%}
+        RESULTADOS POR CASO: {case_results}
+        
+        RESPUESTA MÁXIMO 100 PALABRAS.
+        
+        Explica:
+        1. Cómo funciona el circuito con diferentes entradas
+        2. Por qué algunos casos son correctos/incorrectos
+        3. Patrón general del circuito
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "max_output_tokens": 300
+                }
+            )
+            return response.text[:350]
+        except:
+            return f"Circuito {' → '.join(pattern)} evaluado en {len(test_cases)} casos. Puntuación: {partial_score:.1%}."
+    
+    async def _explain_pattern_analysis_circuit(
+        self,
+        pattern_data: Dict[str, Any],
+        user_answer: Dict[str, Any],
+        expected_output: Dict[str, Any],
+        evaluation_result: Dict[str, Any]
+    ) -> str:
+        """Explica circuito con análisis de patrones (hard)."""
+        pattern = pattern_data.get("pattern", [])
+        partial_score = evaluation_result.get("partial_score", 0.0)
+        component_results = evaluation_result.get("component_results", {})
+        
+        expected_pattern = expected_output.get("pattern", [])
+        expected_cycle = expected_output.get("cycle_length", 0)
+        expected_final = expected_output.get("final_state", 0)
+        
+        prompt = f"""
+        Explica este circuito con análisis de patrones complejos.
+        
+        COMPUERTAS: {pattern}
+        PATRÓN ESPERADO: {expected_pattern}
+        CICLO ESPERADO: {expected_cycle}
+        ESTADO FINAL: {expected_final}
+        PUNTUACIÓN: {partial_score:.1%}
+        ANÁLISIS: {component_results}
+        
+        RESPUESTA MÁXIMO 120 PALABRAS.
+        
+        Explica:
+        1. Cómo el circuito genera el patrón
+        2. Por qué el ciclo tiene esa longitud
+        3. Qué determina el estado final
+        4. Correcciones necesarias si hay errores
+        """
+        
+        try:
+            response = await self.model.generate_content_async(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "max_output_tokens": 400
+                }
+            )
+            return response.text[:400]
+        except:
+            return f"Circuito {' → '.join(pattern)} genera patrón {expected_pattern} con ciclo de {expected_cycle}. Puntuación: {partial_score:.1%}."
+
+
+    def _get_fallback_hangman_word(
+        self, 
+        difficulty: str, 
+        topic: str, 
+        word_length_range: Tuple[int, int]
+    ) -> Dict[str, str]:
+        """Genera palabra de respaldo específica para ahorcado."""
+        fallback_words = {
+            "procesador": {
+                "easy": ("MEMORIA", "Almacena datos temporalmente", "Componente esencial para guardar información"),
+                "medium": ("PIPELINE", "Ejecuta instrucciones en paralelo", "Técnica que mejora rendimiento del procesador"),
+                "hard": ("SUPERESCALAR", "Arquitectura avanzada de CPU", "Ejecuta múltiples instrucciones por ciclo")
+            },
+            "memoria": {
+                "easy": ("CACHE", "Memoria rápida", "Acelera acceso a datos frecuentes"),
+                "medium": ("VIRTUAL", "Sistema de direccionamiento", "Permite usar más memoria de la física disponible"),
+                "hard": ("COHERENCIA", "Consistencia de datos", "Mantiene integridad en sistemas multiprocesador")
+            },
+            "entrada_salida": {
+                "easy": ("PUERTOS", "Interfaces de comunicación", "Permiten conexión con periféricos"),
+                "medium": ("INTERRUPCIONES", "Señales de eventos", "Mecanismo para manejo de eventos asíncronos"),
+                "hard": ("CONTROLADORES", "Gestores de dispositivos", "Software que maneja hardware específico")
+            },
+            "ensamblador": {
+                "easy": ("REGISTROS", "Almacenamiento rápido", "Memoria interna del procesador"),
+                "medium": ("DIRECCIONAMIENTO", "Método de acceso", "Forma de referenciar ubicaciones de memoria"),
+                "hard": ("OPTIMIZACION", "Mejora de rendimiento", "Técnicas para código más eficiente")
+            }
+        }
+        
+        topic_words = fallback_words.get(topic, fallback_words["procesador"])
+        word_data = topic_words.get(difficulty, topic_words["medium"])
+        
+        return {
+            "word": word_data[0],
+            "clue": word_data[1],
+            "argument": word_data[2]
+        }
+    
+
+    def _get_fallback_simple_circuit_new(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para circuito simple - CORREGIDO."""
+        return {
+            "pattern": ["AND", "OR"],  # Usar "pattern" en lugar de "gates_sequence"
+            "input_values": [
+                [1, 1, 1],
+                [1, 0, 1]
+            ],
+            "expected_output": 1,
+            "complexity_type": "single_output",
+            "description": "Circuito AND seguido de OR - Fallback"
+        }
+    
+    def _get_fallback_multiple_cases_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        cases_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para múltiples casos - CORREGIDO."""
+        return {
+            "pattern": ["AND", "XOR", "OR"],  # Usar "pattern"
+            "test_cases": [
+                {
+                    "case_id": "case1",
+                    "input_values": [[1, 1, 1], [1, 0, 1], [1, 1, 1]],
+                    "expected_output": 1
+                },
+                {
+                    "case_id": "case2",
+                    "input_values": [[0, 1, 0], [0, 1, 1], [1, 0, 1]],
+                    "expected_output": 1
+                },
+                {
+                    "case_id": "case3",
+                    "input_values": [[1, 0, 0], [0, 1, 1], [1, 1, 1]],
+                    "expected_output": 1
+                }
+            ],
+            "expected_output": {"case1": 1, "case2": 1, "case3": 1},
+            "complexity_type": "multiple_cases",
+            "description": "Circuito evaluado con múltiples casos - Fallback"
+        }
+    
+    def _get_fallback_pattern_analysis_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para análisis de patrones - CORREGIDO."""
+        return {
+            "pattern": ["XOR", "AND", "OR", "NOT"],  # Usar "pattern"
+            "sequence_inputs": [
+                [1, 0], [0, 1], [1, 1], [0, 0]
+            ],
+            "pattern_analysis": {
+                "sequence": [1, 0, 1, 0, 1, 0, 1, 0],
+                "pattern_type": "alternating",
+                "cycle_length": 2,
+                "final_state": 0,
+                "frequency": {"0": 4, "1": 4}
+            },
+            "expected_output": {
+                "pattern": [1, 0, 1, 0, 1, 0, 1, 0],
+                "final_state": 0,
+                "cycle_length": 2
+            },
+            "complexity_type": "pattern_analysis",
+            "description": "Circuito que genera patrón alternante - Fallback"
+        }
+
+    # TAMBIÉN ACTUALIZAR el fallback del método original
+    def _get_fallback_simple_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Fallback para circuito simple - COMPATIBILIDAD."""
+        
+        if difficulty == "easy" and gates_count == 2:
+            return {
+                "pattern": ["AND", "OR"],  # Cambiar de "gates_sequence" a "pattern"
+                "input_values": [
+                    [1, 1, 1],    # AND(1,1) = 1
+                    [1, 0, 1]     # OR(1,0) = 1
+                ],
+                "expected_output": 1,
+                "complexity_type": "single_output",
+                "description": "Detector básico con AND seguido de OR"
+            }
+        
+        elif difficulty == "medium" and gates_count == 3:
+            return {
+                "pattern": ["AND", "XOR", "OR"],
+                "input_values": [
+                    [1, 1, 1],    # AND(1,1) = 1
+                    [1, 0, 1],    # XOR(1,0) = 1  
+                    [1, 1, 1]     # OR(1,1) = 1
+                ],
+                "expected_output": 1,
+                "complexity_type": "single_output",
+                "description": "Circuito combinacional con AND, XOR y OR"
+            }
+        
+        elif difficulty == "hard" and gates_count == 4:
+            return {
+                "pattern": ["NAND", "NOR", "XOR", "AND"],
+                "input_values": [
+                    [1, 1, 0],    # NAND(1,1) = 0
+                    [0, 1, 0],    # NOR(0,1) = 0
+                    [0, 0, 0],    # XOR(0,0) = 0
+                    [0, 1, 0]     # AND(0,1) = 0
+                ],
+                "expected_output": 0,
+                "complexity_type": "single_output",
+                "description": "Circuito complejo con compuertas negadas"
+            }
+        
+        else:
+            # Fallback genérico simple
+            return {
+                "pattern": ["AND"],
+                "input_values": [
+                    [1, 0, 0]     # AND(1,0) = 0
+                ],
+                "expected_output": 0,
+                "complexity_type": "single_output",
+                "description": "Compuerta AND básica"
+            }
+
+
+    def _get_fallback_logic_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int
+    ) -> Dict[str, Any]:
+        """Genera circuito de respaldo específico."""
+        circuits = {
+            "easy": {
+                "circuit_description": "Detector de entrada alta",
+                "gates_sequence": ["AND_G1"],
+                "gate_connections": {
+                    "G1": {"inputs": ["IN1", "IN2"], "output": "OUT"}
+                },
+                "test_input": [1, 1],
+                "expected_output": 1,
+                "technical_purpose": "Detecta cuando ambas entradas están activas"
+            },
+            "medium": {
+                "circuit_description": "Selector de mayoría",
+                "gates_sequence": ["AND_G1", "AND_G2", "AND_G3", "OR_G4"],
+                "gate_connections": {
+                    "G1": {"inputs": ["IN1", "IN2"], "output": "G1_OUT"},
+                    "G2": {"inputs": ["IN1", "IN3"], "output": "G2_OUT"},
+                    "G3": {"inputs": ["IN2", "IN3"], "output": "G3_OUT"},
+                    "G4": {"inputs": ["G1_OUT", "G2_OUT", "G3_OUT"], "output": "OUT"}
+                },
+                "test_input": [1, 1, 0],
+                "expected_output": 1,
+                "technical_purpose": "Selecciona la salida basada en mayoría de entradas"
+            },
+            "hard": {
+                "circuit_description": "Comparador de igualdad",
+                "gates_sequence": ["XOR_G1", "XOR_G2", "NOR_G3"],
+                "gate_connections": {
+                    "G1": {"inputs": ["IN1", "IN3"], "output": "G1_OUT"},
+                    "G2": {"inputs": ["IN2", "IN4"], "output": "G2_OUT"},
+                    "G3": {"inputs": ["G1_OUT", "G2_OUT"], "output": "OUT"}
+                },
+                "test_input": [1, 0, 1, 0],
+                "expected_output": 1,
+                "technical_purpose": "Compara si dos pares de bits son iguales"
+            }
+        }
+        
+        return circuits.get(difficulty, circuits["easy"])
+    
+
+    def _validate_pattern_diversity(self, circuit_data: Dict[str, Any], complexity_type: str) -> bool:
+        """
+        Valida que el patrón generado tenga suficiente diversidad educativa.
+        
+        Args:
+            circuit_data: Datos del circuito generado
+            complexity_type: Tipo de complejidad esperada
+            
+        Returns:
+            True si el patrón es suficientemente diverso
+        """
+        try:
+            pattern = circuit_data.get("pattern", [])
+            
+            # Validación básica: al menos 2 compuertas diferentes
+            if len(set(pattern)) < max(1, len(pattern) - 1):
+                logger.warning(f"Patrón poco diverso: {pattern}")
+                return False
+            
+            # Validación por complejidad
+            if complexity_type == "single_output":
+                return self._validate_simple_diversity(circuit_data)
+            elif complexity_type == "multiple_cases":
+                return self._validate_multiple_cases_diversity(circuit_data)
+            elif complexity_type == "pattern_analysis":
+                return self._validate_pattern_analysis_diversity(circuit_data)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error validando diversidad: {str(e)}")
+            return False
+    
+    def _validate_simple_diversity(self, circuit_data: Dict[str, Any]) -> bool:
+        """Valida diversidad para circuitos simples."""
+        pattern = circuit_data.get("pattern", [])
+        input_values = circuit_data.get("input_values", [])
+        expected_output = circuit_data.get("expected_output", 0)
+        
+        # No debe ser solo AND/OR básico
+        basic_only = all(gate in ["AND", "OR"] for gate in pattern)
+        if basic_only and len(pattern) > 1:
+            logger.warning("Patrón demasiado básico para educación")
+            return False
+        
+        # Debe tener variedad en las entradas
+        if len(input_values) >= 2:
+            all_same_inputs = all(row[:-1] == input_values[0][:-1] for row in input_values)
+            if all_same_inputs:
+                logger.warning("Entradas idénticas, poco educativo")
+                return False
+        
+        return True
+    
+    def _validate_multiple_cases_diversity(self, circuit_data: Dict[str, Any]) -> bool:
+        """Valida diversidad para múltiples casos."""
+        expected_output = circuit_data.get("expected_output", {})
+        test_cases = circuit_data.get("test_cases", [])
+        
+        # Las salidas deben ser variadas
+        if isinstance(expected_output, dict):
+            unique_outputs = set(expected_output.values())
+            if len(unique_outputs) < 2:
+                logger.warning(f"Salidas poco diversas: {expected_output}")
+                return False
+        
+        # Los casos deben tener entradas diferentes
+        if len(test_cases) >= 2:
+            first_case_inputs = test_cases[0].get("input_values", [])
+            all_same = all(
+                case.get("input_values", []) == first_case_inputs 
+                for case in test_cases[1:]
+            )
+            if all_same:
+                logger.warning("Casos con entradas idénticas")
+                return False
+        
+        return True
+    
+    def _validate_pattern_analysis_diversity(self, circuit_data: Dict[str, Any]) -> bool:
+        """Valida diversidad para análisis de patrones."""
+        expected_output = circuit_data.get("expected_output", {})
+        pattern_sequence = expected_output.get("pattern", [])
+        
+        # El patrón debe tener variedad
+        if len(pattern_sequence) > 0:
+            unique_values = set(pattern_sequence)
+            if len(unique_values) < 2:
+                logger.warning(f"Secuencia poco diversa: {pattern_sequence}")
+                return False
+            
+            # No debe ser demasiado simple (ej: [1,1,1,1,1,1])
+            if len(unique_values) == 1:
+                return False
+            
+            # Debe tener al menos 6 elementos para análisis
+            if len(pattern_sequence) < 6:
+                logger.warning("Secuencia demasiado corta para análisis")
+                return False
+        
+        return True
+    
+    async def _regenerate_if_needed(
+        self, 
+        circuit_data: Dict[str, Any], 
+        complexity_type: str,
+        difficulty: str,
+        gates_count: int,
+        inputs_count: int,
+        max_retries: int = 2
+    ) -> Dict[str, Any]:
+        """
+        Regenera el circuito si no cumple con los estándares de diversidad.
+        
+        Args:
+            circuit_data: Datos del circuito original
+            complexity_type: Tipo de complejidad
+            difficulty: Nivel de dificultad
+            gates_count: Número de compuertas
+            inputs_count: Número de entradas
+            max_retries: Máximo número de reintentos
+            
+        Returns:
+            Circuito mejorado o fallback diverso
+        """
+        if self._validate_pattern_diversity(circuit_data, complexity_type):
+            return circuit_data
+        
+        logger.info(f"Regenerando circuito para mayor diversidad (intentos restantes: {max_retries})")
+        
+        if max_retries > 0:
+            # Intentar regenerar con parámetros más creativos
+            try:
+                if complexity_type == "single_output":
+                    new_circuit = await self._generate_simple_circuit(difficulty, gates_count, inputs_count)
+                elif complexity_type == "multiple_cases":
+                    new_circuit = await self._generate_multiple_cases_circuit(difficulty, gates_count, inputs_count, 3)
+                elif complexity_type == "pattern_analysis":
+                    new_circuit = await self._generate_pattern_analysis_circuit(difficulty, gates_count, inputs_count)
+                else:
+                    return circuit_data
+                
+                return await self._regenerate_if_needed(
+                    new_circuit, complexity_type, difficulty, gates_count, inputs_count, max_retries - 1
+                )
+                
+            except Exception as e:
+                logger.error(f"Error en regeneración: {str(e)}")
+        
+        # Si fallan los reintentos, usar fallback diverso garantizado
+        logger.info("Usando fallback diverso garantizado")
+        if complexity_type == "single_output":
+            return self._get_diverse_fallback_simple(difficulty, gates_count, inputs_count)
+        elif complexity_type == "multiple_cases":
+            return self._get_diverse_fallback_multiple_cases(difficulty, gates_count, 3)
+        elif complexity_type == "pattern_analysis":
+            return self._get_diverse_fallback_pattern_analysis(difficulty, gates_count)
+        
+        return circuit_data
+    
+    # AGREGAR al método generate_complex_logic_circuit una llamada a validación
+    
+    async def generate_complex_logic_circuit(
+        self, 
+        difficulty: str, 
+        gates_count: int, 
+        inputs_count: int,
+        complexity_config: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Genera un circuito lógico con complejidad variable según dificultad - CON VALIDACIÓN DE DIVERSIDAD.
+        """
+        complexity_type = complexity_config.get("complexity_type", "single_output")
+        cases_count = complexity_config.get("cases_count", 1)
+        
+        try:
+            if complexity_type == "single_output":
+                circuit_data = await self._generate_simple_circuit(difficulty, gates_count, inputs_count)
+            elif complexity_type == "multiple_cases":
+                circuit_data = await self._generate_multiple_cases_circuit(difficulty, gates_count, inputs_count, cases_count)
+            elif complexity_type == "pattern_analysis":
+                circuit_data = await self._generate_pattern_analysis_circuit(difficulty, gates_count, inputs_count)
+            else:
+                # Fallback a simple
+                circuit_data = await self._generate_simple_circuit(difficulty, gates_count, inputs_count)
+            
+            # VALIDAR Y REGENERAR SI ES NECESARIO
+            validated_circuit = await self._regenerate_if_needed(
+                circuit_data, complexity_type, difficulty, gates_count, inputs_count
+            )
+            
+            logger.info(f"Circuito generado: {validated_circuit.get('description', 'Sin descripción')}")
+            logger.info(f"Patrón: {validated_circuit.get('pattern', [])}")
+            
+            return validated_circuit
+            
+        except Exception as e:
+            logger.error(f"Error completo en generación de circuito: {str(e)}")
+            # Fallback final garantizado
+            return self._get_emergency_diverse_circuit(complexity_type, difficulty)
+    
+    def _get_emergency_diverse_circuit(self, complexity_type: str, difficulty: str) -> Dict[str, Any]:
+        """Circuito de emergencia garantizado diverso."""
+        emergency_circuits = {
+            "single_output": {
+                "pattern": ["NAND", "XOR"],
+                "input_values": [[1, 0, 1], [1, 1, 0]],
+                "expected_output": 0,
+                "complexity_type": "single_output",
+                "description": "Circuito de emergencia NAND-XOR"
+            },
+            "multiple_cases": {
+                "pattern": ["XOR", "NAND", "OR"],
+                "test_cases": [
+                    {"case_id": "case1", "input_values": [[0, 1, 1], [1, 0, 0], [0, 1, 1]], "expected_output": 1},
+                    {"case_id": "case2", "input_values": [[1, 0, 1], [1, 0, 0], [0, 0, 0]], "expected_output": 0},
+                    {"case_id": "case3", "input_values": [[1, 1, 0], [0, 1, 1], [1, 0, 1]], "expected_output": 1}
+                ],
+                "expected_output": {"case1": 1, "case2": 0, "case3": 1},
+                "complexity_type": "multiple_cases",
+                "description": "Circuito de emergencia multi-caso"
+            },
+            "pattern_analysis": {
+                "pattern": ["XOR", "NAND", "NOR", "NOT"],
+                "sequence_inputs": [[1, 0], [0, 1], [1, 1], [0, 0], [1, 0], [0, 1]],
+                "expected_output": {
+                    "pattern": [1, 0, 0, 1, 1, 0],
+                    "final_state": 0,
+                    "cycle_length": 3
+                },
+                "complexity_type": "pattern_analysis",
+                "description": "Circuito de emergencia con análisis de patrones"
+            }
+        }
+        
+        return emergency_circuits.get(complexity_type, emergency_circuits["single_output"])
+
+    def _get_fallback_assembly_exercise(
+        self, 
+        difficulty: str, 
+        architecture: str, 
+        error_type: str
+    ) -> Dict[str, str]:
+        """Genera ejercicio de ensamblador de respaldo específico."""
+        exercises = {
+            "MIPS_basic": {
+                "buggy_code": "li $t0, 10\nli $t1, 5\nadd $t2, $t0, $t1\nsw $t2, 0($sp)",
+                "expected_behavior": "Sumar dos números y guardar resultado",
+                "hint": "Revisa el uso del stack pointer",
+                "error_explanation": "sw necesita que $sp esté inicializado correctamente"
+            },
+            "MIPS_intermediate": {
+                "buggy_code": "li $t0, 8\nli $t1, 2\ndiv $t0, $t1\nmflo $t2\nsw $t2, array($t0)",
+                "expected_behavior": "Dividir y guardar en array",
+                "hint": "Revisa el direccionamiento del array",
+                "error_explanation": "array($t0) usa índice incorrecto, debería ser un offset fijo"
+            },
+            "x86_advanced": {
+                "buggy_code": "mov eax, 10\nmov ebx, 5\nadd eax, ebx\npush eax\npop ebx\nsub eax, ebx",
+                "expected_behavior": "El resultado debe ser 0 en eax",
+                "hint": "Analiza las operaciones de stack",
+                "error_explanation": "Después del pop ebx, eax y ebx son iguales, sub eax, ebx da 0 pero falta mfhi para remainder"
+            }
+        }
+        
+        return exercises.get(architecture, exercises["MIPS_basic"])
 # Instancia global del servicio
 llm_service = LLMService()

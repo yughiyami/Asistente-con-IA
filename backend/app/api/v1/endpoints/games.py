@@ -6,7 +6,7 @@ Gestiona los diferentes juegos educativos: ahorcado, wordle, diagramas lógicos 
 import uuid
 import logging
 import json
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union , Any
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 from app.schemas.games import (
@@ -25,20 +25,90 @@ logger = logging.getLogger(__name__)
 # Configurar router
 router = APIRouter()
 
+# Configuración de dificultad mejorada y específica
+DIFFICULTY_CONFIG = {
+    "easy": {
+        "hangman": {"max_attempts": 8, "word_length_range": (6, 8), "hint_detail": "detailed"},
+        "wordle": {"max_attempts": 7, "complexity": "basic_terms"},
+        "logic": {"gates_count": 2, "inputs_count": 2, "complexity": "single_operation"},
+        "assembly": {"instructions_count": 3, "architecture": "MIPS_basic", "error_type": "syntax"}
+    },
+    "medium": {
+        "hangman": {"max_attempts": 6, "word_length_range": (8, 12), "hint_detail": "moderate"},
+        "wordle": {"max_attempts": 6, "complexity": "intermediate_terms"},
+        "logic": {"gates_count": 3, "inputs_count": 3, "complexity": "multi_gate"},
+        "assembly": {"instructions_count": 5, "architecture": "MIPS_intermediate", "error_type": "logic"}
+    },
+    "hard": {
+        "hangman": {"max_attempts": 5, "word_length_range": (12, 16), "hint_detail": "minimal"},
+        "wordle": {"max_attempts": 5, "complexity": "advanced_terms"},
+        "logic": {"gates_count": 4, "inputs_count": 4, "complexity": "complex_circuit"},
+        "assembly": {"instructions_count": 7, "architecture": "x86_advanced", "error_type": "semantic"}
+    }
+}
 
-# Endpoint común para todos los juegos
+# Tópicos específicos y mejorados por categoría
+TOPICS_ENHANCED = {
+    "procesador": {
+        "easy": ["CPU básico", "ALU", "registros", "ciclo fetch"],
+        "medium": ["pipeline", "superescalar", "branch prediction", "cache L1"],
+        "hard": ["out-of-order execution", "speculative execution", "microarquitectura", "ROB"]
+    },
+    "memoria": {
+        "easy": ["RAM", "ROM", "direcciones", "jerarquía"],
+        "medium": ["cache coherencia", "memoria virtual", "TLB", "paginación"],
+        "hard": ["NUMA", "cache protocols", "memory consistency", "cache partitioning"]
+    },
+    "entrada_salida": {
+        "easy": ["puertos", "interrupciones", "DMA", "buses"],
+        "medium": ["controladores", "polling vs interrupts", "bus arbitration", "I/O scheduling"],
+        "hard": ["PCIe", "coherent interconnects", "IOMMU", "virtualized I/O"]
+    },
+    "ensamblador": {
+        "easy": ["instrucciones básicas", "registros", "mov", "add"],
+        "medium": ["saltos condicionales", "loops", "stack", "procedimientos"],
+        "hard": ["optimización", "scheduling", "register allocation", "inline assembly"]
+    }
+}
+
+COMPLEXITY_CONFIG = {
+    "easy": {
+        "complexity_type": "single_output",
+        "description": "Una sola salida simple",
+        "output_format": "int",  # Ejemplo: 1
+        "evaluation_criteria": "exact_match",
+        "question_template": "¿Cuál es la salida final del circuito?",
+        "cases_count": 1
+    },
+    "medium": {
+        "complexity_type": "multiple_cases", 
+        "description": "Múltiples casos de prueba",
+        "output_format": "dict",  # Ejemplo: {"case1": 0, "case2": 1, "case3": 1}
+        "evaluation_criteria": "partial_scoring",
+        "question_template": "¿Cuáles son las salidas para cada caso de prueba?",
+        "cases_count": 3
+    },
+    "hard": {
+        "complexity_type": "pattern_analysis",
+        "description": "Análisis de patrones y múltiples circuitos",
+        "output_format": "complex_dict",  # Ejemplo: {"pattern": [0,1,0,1], "final_state": 1, "cycle_length": 2}
+        "evaluation_criteria": "pattern_recognition",
+        "question_template": "Analiza el patrón de salidas y determina: el patrón completo, el estado final y la longitud del ciclo",
+        "cases_count": 4
+    }
+}
+
+# Tipos de análisis complejo para nivel hard
+HARD_ANALYSIS_TYPES = [
+    "pattern_sequence",     # Analizar secuencia de salidas
+    "state_machine",        # Determinar estados de máquina
+    "cycle_detection",      # Detectar ciclos en las salidas
+    "frequency_analysis"    # Análisis de frecuencia de estados
+]
+
+# Endpoint común para todos los juegos (sin cambios)
 @router.post("", response_model=Union[HangmanResponse, WordleResponse, LogicResponse, AssemblyResponse])
 async def create_game(request: GameRequest):
-    """
-    Crea un nuevo juego del tipo especificado.
-    
-    Parameters:
-    - **request**: Tipo de juego, dificultad y tema opcional
-    
-    Returns:
-    - Objeto de juego específico según el tipo solicitado
-    """
-    # Redireccionar a la función específica según el tipo de juego
     if request.game_type == GameType.HANGMAN:
         return await create_hangman_game(request)
     elif request.game_type == GameType.WORDLE:
@@ -50,107 +120,57 @@ async def create_game(request: GameRequest):
     else:
         raise HTTPException(status_code=400, detail="Tipo de juego no soportado")
 
-
-# Juego de Ahorcado (Hangman)
+# Juego de Ahorcado - MEJORADO
 @router.post("/hangman", response_model=HangmanResponse)
 async def create_hangman_game(request: GameRequest) -> HangmanResponse:
-    """
-    Crea un nuevo juego de Ahorcado.
-    
-    Parameters:
-    - **request**: Configuración del juego
-    
-    Returns:
-    - **HangmanResponse**: Juego de ahorcado configurado
-    """
     try:
-        # Generar prompt para el LLM
-        prompt = f"""
-        Genera una palabra relacionada con arquitectura de computadoras para un juego de ahorcado.
-        Nivel de dificultad: {request.difficulty}
-        Tema específico: {request.topic or "general"}
+        difficulty_config = DIFFICULTY_CONFIG[request.difficulty]["hangman"]
+        topic_words = TOPICS_ENHANCED.get(request.topic, TOPICS_ENHANCED["procesador"])[request.difficulty]
         
-        Proporciona:
-        1. Una palabra técnica relevante (sin espacios, solo letras)
-        2. Una pista para ayudar a adivinar la palabra
-        3. Una breve explicación sobre la palabra (para mostrar al final del juego)
+        # Generar palabra específica con IA mejorada
+        word_data = await llm_service.generate_hangman_word(
+            difficulty=request.difficulty,
+            topic=request.topic or "procesador",
+            word_length_range=difficulty_config['word_length_range']
+        )
         
-        Formato JSON de respuesta:
-        {{
-          "word": "palabra",
-          "clue": "Esta es una pista sobre la palabra",
-          "argument": "Explicación detallada sobre el concepto"
-        }}
-        """
+        word = word_data["word"]
+        clue = word_data["clue"]
+        argument = word_data["argument"]
         
-        # Configurar la estructura esperada para la respuesta JSON
-        expected_structure = {
-            "word": "ejemplo",
-            "clue": "Esta es una pista",
-            "argument": "Esta es una explicación"
-        }
-        
-        # Llamar al LLM
-        response_json = await llm_service.generate_json(prompt, expected_structure)
-        
-        # Extraer los valores
-        word = response_json.get("word", "").upper()
-        clue = response_json.get("clue", "")
-        argument = response_json.get("argument", "")
-        
-        # Validar la palabra
-        if not word or not word.isalpha():
-            raise ValueError("La palabra generada no es válida")
-        
-        # Generar ID único para el juego
         game_id = f"hangman_{uuid.uuid4().hex}"
         
-        # Guardar el juego en el servicio
         games_service.save_hangman_game(
             game_id=game_id,
             word=word,
-            max_attempts=6
+            clue=clue,
+            argument=argument,
+            max_attempts=difficulty_config["max_attempts"]
         )
         
-        # Crear representación oculta de la palabra
         hidden_word = "_ " * len(word)
         
         return HangmanResponse(
             game_id=game_id,
             word_length=len(word),
-            clue=clue,
-            argument=argument,
-            max_attempts=6,
+            clue=clue[:100],  # Limitado a 100 caracteres
+            argument=argument[:100],  # Limitado a 100 caracteres
+            max_attempts=difficulty_config["max_attempts"],
             hidden_word=hidden_word.strip()
         )
         
     except Exception as e:
         logger.error(f"Error al crear juego de ahorcado: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al crear el juego de ahorcado"
-        )
-
+        raise HTTPException(status_code=500, detail="Error al crear el juego de ahorcado")
 
 @router.post("/hangman/guess", response_model=HangmanGuessResponse)
 async def guess_hangman(request: HangmanGuessRequest) -> HangmanGuessResponse:
-    """
-    Procesa un intento de adivinanza en el juego de Ahorcado.
-    
-    Parameters:
-    - **request**: ID del juego y letra/palabra adivinada
-    
-    Returns:
-    - **HangmanGuessResponse**: Resultado de la adivinanza
-    """
     try:
-        # Obtener el estado actual del juego
         game = games_service.get_hangman_game(request.game_id)
         
         if not game:
             raise HTTPException(status_code=404, detail="Juego no encontrado")
         
-        # Verificar si el juego ya terminó
         if game.get("game_over", False):
             return HangmanGuessResponse(
                 correct=False,
@@ -161,175 +181,91 @@ async def guess_hangman(request: HangmanGuessRequest) -> HangmanGuessResponse:
                 correct_word=game.get("word", "")
             )
         
-        # Procesar la adivinanza
-        guess = request.guess.upper()
-        word = game.get("word", "")
-        current_word = game.get("current_word", "_ " * len(word)).split()
-        remaining_attempts = game.get("remaining_attempts", 6)
+        # Procesar adivinanza usando el servicio
+        updated_game = games_service.hangman_service.process_guess(request.game_id, request.guess)
         
-        # Determinar si es adivinanza de letra o palabra completa
-        if len(guess) == 1:  # Es una letra
-            # Verificar si la letra está en la palabra
-            correct = guess in word
-            
-            if correct:
-                # Actualizar la palabra parcialmente revelada
-                for i, char in enumerate(word):
-                    if char == guess:
-                        current_word[i] = char
-            else:
-                # Reducir intentos restantes
-                remaining_attempts -= 1
-                
-        else:  # Es una palabra completa
-            correct = guess == word
-            
-            if correct:
-                # Revelar toda la palabra
-                current_word = list(word)
-            else:
-                # Reducir intentos restantes
-                remaining_attempts -= 1
-        
-        # Verificar si el juego ha terminado
-        current_word_str = " ".join(current_word)
-        game_over = remaining_attempts <= 0 or "_" not in current_word_str
-        win = "_" not in current_word_str
-        
-        # Actualizar el estado del juego
-        games_service.update_hangman_game(
-            game_id=request.game_id,
-            current_word=current_word_str,
-            remaining_attempts=remaining_attempts,
-            game_over=game_over,
-            win=win
-        )
-        
-        # Construir respuesta
         response = HangmanGuessResponse(
-            correct=correct,
-            current_word=current_word_str,
-            remaining_attempts=remaining_attempts,
-            game_over=game_over
+            correct=updated_game.get("last_guess_correct", False),
+            current_word=updated_game.get("current_word", ""),
+            remaining_attempts=updated_game.get("remaining_attempts", 0),
+            game_over=updated_game.get("game_over", False)
         )
         
-        # Incluir información adicional si el juego terminó
-        if game_over:
-            response.win = win
-            response.correct_word = word
+        if updated_game.get("game_over", False):
+            response.win = updated_game.get("win", False)
+            response.correct_word = updated_game.get("word", "")
         
         return response
         
     except HTTPException:
         raise
-        
     except Exception as e:
         logger.error(f"Error al procesar adivinanza: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al procesar la adivinanza"
-        )
+        raise HTTPException(status_code=500, detail="Error al procesar la adivinanza")
 
-
-# Juego de Wordle
+# Juego de Wordle - SIN CAMBIOS MAYORES (mantener como está)
 @router.post("/wordle", response_model=WordleResponse)
 async def create_wordle_game(request: GameRequest) -> WordleResponse:
-    """
-    Crea un nuevo juego de Wordle con términos de arquitectura de computadoras.
-    
-    Parameters:
-    - **request**: Configuración del juego
-    
-    Returns:
-    - **WordleResponse**: Juego de Wordle configurado
-    """
     try:
-        # Generar prompt para el LLM
+        # Generar palabra específica con IA
         prompt = f"""
-        Genera una palabra de EXACTAMENTE 5 letras relacionada con arquitectura de computadoras para un juego de Wordle.
-        Nivel de dificultad: {request.difficulty}
-        Tema específico: {request.topic or "general"}
+        Genera UNA palabra de EXACTAMENTE 5 letras relacionada con arquitectura de computadoras.
+        Dificultad: {request.difficulty}
+        Tema: {request.topic or "general"}
         
-        La palabra debe ser un término técnico relevante y debe tener EXACTAMENTE 5 letras.
-        Proporciona solo la palabra, sin espacios, solo letras.
-        También incluye una pista sobre el tema de la palabra.
+        RESPUESTA LIMITADA A 100 PALABRAS MÁXIMO.
         
-        Formato JSON de respuesta:
+        Formato JSON:
         {{
-          "word": "palabra_de_5_letras",
-          "topic_hint": "Pista sobre el tema de la palabra"
+          "word": "PALABRA_5_LETRAS",
+          "topic_hint": "Pista específica (máximo 30 palabras)"
         }}
         """
         
-        # Configurar la estructura esperada para la respuesta JSON
-        expected_structure = {
-            "word": "cache",
-            "topic_hint": "Relacionado con almacenamiento de datos"
-        }
-        
-        # Llamar al LLM
+        expected_structure = {"word": "CACHE", "topic_hint": "Relacionado con almacenamiento"}
         response_json = await llm_service.generate_json(prompt, expected_structure)
         
-        # Extraer los valores
         word = response_json.get("word", "").upper()
         topic_hint = response_json.get("topic_hint", "")
         
-        # Validar la palabra (debe tener exactamente 5 letras)
         if not word or len(word) != 5 or not word.isalpha():
-            # Si la palabra no es válida, usar una predeterminada
             fallback_words = ["CACHE", "STACK", "BUSES", "CLOCK", "RISC"]
             import random
             word = random.choice(fallback_words)
-            logger.warning(f"Se generó una palabra no válida, usando alternativa: {word}")
+            logger.warning(f"Palabra no válida, usando alternativa: {word}")
         
-        # Generar ID único para el juego
         game_id = f"wordle_{uuid.uuid4().hex}"
         
-        # Guardar el juego en el servicio
         games_service.save_wordle_game(
             game_id=game_id,
             word=word,
+            topic_hint=topic_hint,
             max_attempts=6
         )
         
         return WordleResponse(
             game_id=game_id,
-            word_length=5,  # Siempre 5 para Wordle
+            word_length=5,
             max_attempts=6,
-            topic_hint=topic_hint
+            topic_hint=topic_hint[:100]  # Limitado a 100 caracteres
         )
         
     except Exception as e:
         logger.error(f"Error al crear juego de Wordle: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al crear el juego de Wordle"
-        )
-
+        raise HTTPException(status_code=500, detail="Error al crear el juego de Wordle")
 
 @router.post("/wordle/guess", response_model=WordleGuessResponse)
 async def guess_wordle(request: WordleGuessRequest) -> WordleGuessResponse:
-    """
-    Procesa un intento de adivinanza en el juego de Wordle.
-    
-    Parameters:
-    - **request**: ID del juego y palabra adivinada
-    
-    Returns:
-    - **WordleGuessResponse**: Resultado de la adivinanza con códigos de colores para cada letra
-    """
     try:
-        # Obtener el estado actual del juego
         game = games_service.get_wordle_game(request.game_id)
         
         if not game:
             raise HTTPException(status_code=404, detail="Juego no encontrado")
         
-        # Verificar si el juego ya terminó
         if game.get("game_over", False):
             return WordleGuessResponse(
                 results=[],
-                attempt_number=game.get("attempts", [])[-1] if game.get("attempts") else 0,
+                attempt_number=len(game.get("attempts", [])),
                 remaining_attempts=0,
                 game_over=True,
                 win=game.get("win", False),
@@ -337,412 +273,420 @@ async def guess_wordle(request: WordleGuessRequest) -> WordleGuessResponse:
                 explanation=game.get("explanation", "")
             )
         
-        # Procesar la adivinanza
-        guess = request.word.upper()
-        word = game.get("word", "")
-        attempts = game.get("attempts", [])
+        # Procesar adivinanza usando el servicio
+        updated_game = games_service.wordle_service.process_guess(request.game_id, request.word)
         
-        # Validar la palabra adivinada
-        if len(guess) != 5 or not guess.isalpha():
-            raise HTTPException(
-                status_code=400, 
-                detail="La palabra debe tener exactamente 5 letras y contener solo caracteres alfabéticos"
-            )
+        # Obtener resultados de la última jugada
+        results = updated_game.get("results", [])[-1] if updated_game.get("results") else []
         
-        # Calcular resultados para cada letra
-        results = []
-        
-        # Primero marcar las letras correctas en posición correcta
-        word_chars = list(word)
-        for i, char in enumerate(guess):
-            if i < len(word) and char == word[i]:
-                results.append(LetterResult.CORRECT)
-                word_chars[i] = "*"  # Marcar como usada
-            else:
-                results.append(None)  # Temporal, se completará después
-        
-        # Luego marcar las letras presentes pero en posición incorrecta
-        for i, char in enumerate(guess):
-            if results[i] is None:  # Solo procesar posiciones aún sin resultado
-                if char in word_chars:
-                    results[i] = LetterResult.PRESENT
-                    word_chars[word_chars.index(char)] = "*"  # Marcar como usada
-                else:
-                    results[i] = LetterResult.ABSENT
-        
-        # Actualizar el estado del juego
-        attempts.append(guess)
-        attempt_number = len(attempts)
-        remaining_attempts = game.get("max_attempts", 6) - attempt_number
-        
-        # Verificar si el juego ha terminado
-        win = guess == word
-        game_over = win or remaining_attempts <= 0
-        
-        # Si el juego termina, generar una explicación del término
-        explanation = None
-        if game_over:
-            try:
-                # Generar explicación con el LLM
-                explain_prompt = f"""
-                Proporciona una explicación breve pero informativa sobre el término '{word.lower()}' 
-                en el contexto de arquitectura de computadoras.
-                La explicación debe ser clara y educativa, adecuada para un estudiante universitario.
-                """
-                explanation = await llm_service.generate_text(explain_prompt)
-            except:
-                explanation = f"Término técnico en arquitectura de computadoras: {word.lower()}"
-        
-        # Actualizar el estado del juego
-        games_service.update_wordle_game(
-            game_id=request.game_id,
-            attempts=attempts,
-            game_over=game_over,
-            win=win,
-            explanation=explanation
-        )
-        
-        # Construir respuesta
         response = WordleGuessResponse(
             results=results,
-            attempt_number=attempt_number,
-            remaining_attempts=remaining_attempts,
-            game_over=game_over
+            attempt_number=len(updated_game.get("attempts", [])),
+            remaining_attempts=updated_game.get("max_attempts", 6) - len(updated_game.get("attempts", [])),
+            game_over=updated_game.get("game_over", False)
         )
         
-        # Incluir información adicional si el juego terminó
-        if game_over:
-            response.win = win
-            response.correct_word = word
-            response.explanation = explanation
+        if updated_game.get("game_over", False):
+            response.win = updated_game.get("win", False)
+            response.correct_word = updated_game.get("word", "")
+            
+            # Generar explicación limitada a 100 palabras
+            if not updated_game.get("explanation"):
+                explanation = await llm_service.generate_text(
+                    f"Explica brevemente el término '{updated_game.get('word', '').lower()}' en arquitectura de computadoras (máximo 100 palabras)."
+                )
+                response.explanation = explanation[:400]  # Limitar a 400 caracteres total
+            else:
+                response.explanation = updated_game.get("explanation", "")[:400]
         
         return response
         
     except HTTPException:
         raise
-        
     except Exception as e:
         logger.error(f"Error al procesar adivinanza de Wordle: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al procesar la adivinanza"
-        )
+        raise HTTPException(status_code=500, detail="Error al procesar la adivinanza")
 
-
-# Juego de Diagrama Lógico
+# Juego de Diagrama Lógico - COMPLETAMENTE REDISEÑADO
 @router.post("/logic", response_model=LogicResponse)
 async def create_logic_game(request: GameRequest) -> LogicResponse:
     """
-    Crea un nuevo juego de Diagrama Lógico.
-    
-    Parameters:
-    - **request**: Configuración del juego
-    
-    Returns:
-    - **LogicResponse**: Juego de diagrama lógico configurado
+    Crea un nuevo juego de Compuertas Lógicas con complejidad variable según dificultad - CORREGIDO.
     """
     try:
-        # Generar prompt para el LLM
-        prompt = f"""
-        Crea un problema de diagrama lógico para arquitectura de computadoras.
-        Nivel de dificultad: {request.difficulty}
+        difficulty_config = DIFFICULTY_CONFIG[request.difficulty]["logic"]
+        complexity_config = COMPLEXITY_CONFIG[request.difficulty]
         
-        Proporciona:
-        1. Un patrón o concepto lógico (por ejemplo, compuertas AND, OR, NOT, sumadores, multiplexores, etc.)
-        2. Una pregunta desafiante sobre el patrón
-        3. Valores de entrada de ejemplo (al menos 3 conjuntos de entradas)
-        4. Valores de salida esperados para esas entradas
+        gates_count = difficulty_config["gates_count"]
+        inputs_count = difficulty_config["inputs_count"]
         
-        Formato JSON de respuesta:
-        {{
-          "pattern": "descripción del patrón lógico",
-          "question": "pregunta sobre el patrón",
-          "input_values": [
-            [valor1_conjunto1, valor2_conjunto1, ...],
-            [valor1_conjunto2, valor2_conjunto2, ...],
-            [valor1_conjunto3, valor2_conjunto3, ...]
-          ],
-          "expected_output": [
-            resultado_conjunto1,
-            resultado_conjunto2,
-            resultado_conjunto3
-          ]
-        }}
-        """
+        # Generar circuito con complejidad variable
+        circuit_data = await llm_service.generate_complex_logic_circuit(
+            difficulty=request.difficulty,
+            gates_count=gates_count,
+            inputs_count=inputs_count,
+            complexity_config=complexity_config
+        )
         
-        # Configurar la estructura esperada para la respuesta JSON
-        expected_structure = {
-            "pattern": "Compuerta AND de 3 entradas",
-            "question": "¿Cuál es la salida para cada conjunto de entradas?",
-            "input_values": [[1, 1, 1], [1, 0, 1], [0, 1, 1]],
-            "expected_output": [1, 0, 0]
+        game_id = f"logic_{uuid.uuid4().hex}"
+        complexity_type = circuit_data.get("complexity_type", "single_output")
+        
+        # Preparar datos según tipo de complejidad
+        if complexity_type == "single_output":
+            pattern_list = circuit_data.get("pattern", [])
+            input_matrix = circuit_data.get("input_values", [])
+            expected_output = circuit_data.get("expected_output", 0)
+            question = complexity_config.get("question_template", "¿Cuál es la salida final del circuito?")
+            
+        elif complexity_type == "multiple_cases":
+            pattern_list = circuit_data.get("pattern", [])
+            input_matrix = []  # Se usará test_cases en su lugar
+            expected_output = circuit_data.get("expected_output", {})
+            question = complexity_config.get("question_template", "¿Cuáles son las salidas para cada caso?")
+            
+            # Preparar matriz con todos los casos
+            test_cases = circuit_data.get("test_cases", [])
+            for case in test_cases:
+                input_matrix.extend(case.get("input_values", []))
+            
+        elif complexity_type == "pattern_analysis":
+            pattern_list = circuit_data.get("pattern", [])
+            input_matrix = circuit_data.get("sequence_inputs", [])
+            expected_output = circuit_data.get("expected_output", {})
+            question = complexity_config.get("question_template", "Analiza el patrón y determina la secuencia.")
+        
+        else:
+            # Fallback a simple
+            pattern_list = circuit_data.get("pattern", ["AND"])
+            input_matrix = circuit_data.get("input_values", [[1, 0, 0]])
+            expected_output = circuit_data.get("expected_output", 0)
+            question = "¿Cuál es la salida final del circuito?"
+        
+        # CORREGIR: Construir la estructura correcta con "pattern" en lugar de "gates_sequence"
+        circuit_structure = {
+            "pattern": pattern_list,  # USAR "pattern" aquí
+            "input_values": input_matrix,
+            "expected_output": expected_output,
+            "complexity_type": complexity_type,
+            "test_cases": circuit_data.get("test_cases", []),
+            "difficulty": request.difficulty,
+            "description": circuit_data.get("description", f"Circuito {complexity_type}")
         }
         
-        # Llamar al LLM
-        response_json = await llm_service.generate_json(prompt, expected_structure)
-        
-        # Extraer los valores
-        pattern = response_json.get("pattern", "")
-        question = response_json.get("question", "")
-        input_values = response_json.get("input_values", [])
-        expected_output = response_json.get("expected_output", [])
-        
-        # Validar valores
-        if not pattern or not question or not input_values or not expected_output:
-            raise ValueError("Los datos generados están incompletos")
-        
-        if len(input_values) != len(expected_output):
-            raise ValueError("El número de entradas y salidas no coincide")
-        
-        # Generar ID único para el juego
-        game_id = f"logic_{uuid.uuid4().hex}"
-        
-        # Guardar el juego en el servicio
+        # Guardar en el servicio con la estructura corregida
         games_service.save_logic_game(
             game_id=game_id,
-            pattern=pattern,
+            pattern=json.dumps(circuit_structure),  # Pasar estructura completa como JSON
             question=question,
-            input_values=input_values,
-            expected_output=expected_output
+            input_values=[input_matrix],  # Para compatibilidad
+            expected_output=[expected_output] if isinstance(expected_output, (int, str)) else [expected_output]
         )
         
         return LogicResponse(
             game_id=game_id,
-            pattern=pattern,
+            difficulty=request.difficulty,
+            pattern=pattern_list,
             question=question,
-            input_values=input_values,
-            expected_output=expected_output
+            input_values=input_matrix,
+            expected_output=expected_output,
+            complexity_type=complexity_type
         )
         
     except Exception as e:
-        logger.error(f"Error al crear juego de diagrama lógico: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al crear el juego de diagrama lógico"
-        )
+        logger.error(f"Error al crear juego de lógica complejo: {str(e)}")
+        # En caso de error, intentar con fallback simple
+        try:
+            return await _create_fallback_logic_game(request)
+        except Exception as fallback_error:
+            logger.error(f"Error en fallback de lógica: {str(fallback_error)}")
+            raise HTTPException(status_code=500, detail="Error al crear el juego de lógica")
 
+
+# AGREGAR función de fallback
+async def _create_fallback_logic_game(request: GameRequest) -> LogicResponse:
+    """Crea un juego de lógica de fallback en caso de error."""
+    game_id = f"logic_{uuid.uuid4().hex}"
+    
+    # Fallback simple según dificultad
+    if request.difficulty == "easy":
+        pattern_list = ["AND"]
+        input_matrix = [[1, 1, 1]]
+        expected_output = 1
+        complexity_type = "single_output"
+    elif request.difficulty == "medium":
+        pattern_list = ["AND", "OR"]
+        input_matrix = [[1, 1, 1], [1, 0, 1]]
+        expected_output = {"case1": 1, "case2": 1}
+        complexity_type = "multiple_cases"
+    else:  # hard
+        pattern_list = ["XOR", "NOT"]
+        input_matrix = [[1, 0], [0, 1]]
+        expected_output = {"pattern": [1, 0], "final_state": 0, "cycle_length": 2}
+        complexity_type = "pattern_analysis"
+    
+    # Estructura de fallback
+    circuit_structure = {
+        "pattern": pattern_list,
+        "input_values": input_matrix,
+        "expected_output": expected_output,
+        "complexity_type": complexity_type,
+        "difficulty": request.difficulty,
+        "description": f"Circuito fallback {complexity_type}"
+    }
+    
+    question = COMPLEXITY_CONFIG[request.difficulty].get("question_template", "¿Cuál es la salida del circuito?")
+    
+    # Guardar en el servicio
+    games_service.save_logic_game(
+        game_id=game_id,
+        pattern=json.dumps(circuit_structure),
+        question=question,
+        input_values=[input_matrix],
+        expected_output=[expected_output] if isinstance(expected_output, (int, str)) else [expected_output]
+    )
+    
+    logger.info(f"Juego de lógica fallback creado: {game_id}")
+    
+    return LogicResponse(
+        game_id=game_id,
+        difficulty=request.difficulty,
+        pattern=pattern_list,
+        question=question,
+        input_values=input_matrix,
+        expected_output=expected_output,
+        complexity_type=complexity_type
+    )
 
 @router.post("/logic/answer", response_model=LogicAnswerResponse)
 async def answer_logic(request: LogicAnswerRequest) -> LogicAnswerResponse:
     """
-    Procesa la respuesta a un juego de Diagrama Lógico.
-    
-    Parameters:
-    - **request**: ID del juego y respuestas proporcionadas
-    
-    Returns:
-    - **LogicAnswerResponse**: Resultado de la validación con explicación
+    Procesa la respuesta a un juego de Compuertas Lógicas con complejidad variable.
     """
     try:
-        # Obtener el juego
         game = games_service.get_logic_game(request.game_id)
         
         if not game:
             raise HTTPException(status_code=404, detail="Juego no encontrado")
         
-        # Comparar respuestas
-        expected_output = game.get("expected_output", [])
-        user_answers = request.answers
+        # Obtener datos del juego
+        pattern_data = json.loads(game.get('pattern', '{}'))
+        complexity_type = pattern_data.get("complexity_type", "single_output")
+        difficulty = pattern_data.get("difficulty", "easy")
+        expected_output = pattern_data.get("expected_output", 0)
+        user_answer = request.answer
         
-        # Verificar que el número de respuestas coincide
-        if len(user_answers) != len(expected_output):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Número incorrecto de respuestas. Se esperaban {len(expected_output)}."
+        # Evaluar según complejidad
+        if complexity_type == "single_output":
+            evaluation_result = await _evaluate_simple_answer(
+                user_answer, expected_output, pattern_data
+            )
+        elif complexity_type == "multiple_cases":
+            evaluation_result = await _evaluate_multiple_cases_answer(
+                user_answer, expected_output, pattern_data
+            )
+        elif complexity_type == "pattern_analysis":
+            evaluation_result = await _evaluate_pattern_analysis_answer(
+                user_answer, expected_output, pattern_data
+            )
+        else:
+            # Fallback a evaluación simple
+            evaluation_result = await _evaluate_simple_answer( # type: ignore
+                user_answer, expected_output, pattern_data
             )
         
-        # Verificar respuestas
-        all_correct = True
-        for i, (user, expected) in enumerate(zip(user_answers, expected_output)):
-            if str(user) != str(expected):  # Convertir a string para comparación flexible
-                all_correct = False
-                break
-        
-        # Generar explicación con el LLM
-        explanation_prompt = f"""
-        Explica el siguiente concepto de arquitectura de computadoras:
-        
-        Patrón: {game.get('pattern')}
-        
-        Proporciona una explicación detallada y educativa sobre cómo funciona este patrón lógico
-        y por qué las entradas dadas producen las salidas esperadas.
-        """
-        
-        explanation = await llm_service.generate_text(explanation_prompt)
-        
-        return LogicAnswerResponse(
-            correct=all_correct,
-            correct_answers=expected_output,
-            explanation=explanation
+        # Generar explicación específica según complejidad
+        explanation = await llm_service.explain_complex_logic_circuit(
+            pattern_data=pattern_data,
+            user_answer=user_answer,
+            expected_output=expected_output,
+            evaluation_result=evaluation_result,
+            complexity_type=complexity_type
         )
+        
+        response = LogicAnswerResponse(
+            correct=evaluation_result.get("correct", False),
+            correct_answer=expected_output,
+            explanation=explanation[:400]
+        )
+        
+        # Agregar información adicional para respuestas complejas
+        if complexity_type in ["multiple_cases", "pattern_analysis"]:
+            response.partial_score = evaluation_result.get("partial_score")
+            response.complexity_feedback = evaluation_result.get("feedback", "")[:200]
+        
+        return response
         
     except HTTPException:
         raise
-        
     except Exception as e:
-        logger.error(f"Error al procesar respuesta de diagrama lógico: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al procesar la respuesta"
-        )
+        logger.error(f"Error al procesar respuesta de lógica compleja: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al procesar la respuesta")
 
 
-# Juego de Ensamblador
+async def _evaluate_simple_answer(
+    user_answer: int,
+    expected_output: int,
+    pattern_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Evalúa respuesta simple (easy)."""
+    correct = int(user_answer) == int(expected_output)
+    return {
+        "correct": correct,
+        "score": 1.0 if correct else 0.0,
+        "feedback": "Correcto" if correct else f"Incorrecto, la respuesta era {expected_output}"
+    }
+
+
+async def _evaluate_multiple_cases_answer(
+    user_answer: Dict[str, int],
+    expected_output: Dict[str, int],
+    pattern_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Evalúa respuesta de múltiples casos (medium)."""
+    if not isinstance(user_answer, dict) or not isinstance(expected_output, dict):
+        return {"correct": False, "partial_score": 0.0, "feedback": "Formato de respuesta incorrecto"}
+    
+    total_cases = len(expected_output)
+    correct_cases = 0
+    
+    case_results = {}
+    for case_id, expected_val in expected_output.items():
+        user_val = user_answer.get(case_id)
+        if user_val is not None and int(user_val) == int(expected_val):
+            correct_cases += 1
+            case_results[case_id] = "correct"
+        else:
+            case_results[case_id] = f"incorrect (expected {expected_val}, got {user_val})"
+    
+    partial_score = correct_cases / total_cases
+    all_correct = correct_cases == total_cases
+    
+    feedback = f"Casos correctos: {correct_cases}/{total_cases}"
+    
+    return {
+        "correct": all_correct,
+        "partial_score": partial_score,
+        "case_results": case_results,
+        "feedback": feedback
+    }
+
+
+async def _evaluate_pattern_analysis_answer(
+    user_answer: Dict[str, Any],
+    expected_output: Dict[str, Any],
+    pattern_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Evalúa respuesta de análisis de patrones (hard)."""
+    if not isinstance(user_answer, dict) or not isinstance(expected_output, dict):
+        return {"correct": False, "partial_score": 0.0, "feedback": "Formato de respuesta incorrecto"}
+    
+    total_components = len(expected_output)
+    correct_components = 0
+    component_results = {}
+    
+    for component, expected_val in expected_output.items():
+        user_val = user_answer.get(component)
+        
+        if component == "pattern":
+            # Comparar listas de patrones
+            if isinstance(user_val, list) and isinstance(expected_val, list):
+                matches = sum(1 for u, e in zip(user_val, expected_val) if u == e)
+                pattern_accuracy = matches / len(expected_val) if expected_val else 0
+                if pattern_accuracy >= 0.8:  # 80% de precisión mínima
+                    correct_components += 1
+                    component_results[component] = f"correct ({pattern_accuracy:.1%} accuracy)"
+                else:
+                    component_results[component] = f"partial ({pattern_accuracy:.1%} accuracy)"
+            else:
+                component_results[component] = "incorrect format"
+        else:
+            # Comparar valores individuales
+            if user_val == expected_val:
+                correct_components += 1
+                component_results[component] = "correct"
+            else:
+                component_results[component] = f"incorrect (expected {expected_val}, got {user_val})"
+    
+    partial_score = correct_components / total_components
+    all_correct = correct_components == total_components
+    
+    feedback = f"Componentes correctos: {correct_components}/{total_components}"
+    
+    return {
+        "correct": all_correct,
+        "partial_score": partial_score,
+        "component_results": component_results,
+        "feedback": feedback
+    }
+
+# Juego de Ensamblador - COMPLETAMENTE REDISEÑADO
 @router.post("/assembly", response_model=AssemblyResponse)
 async def create_assembly_game(request: GameRequest) -> AssemblyResponse:
-    """
-    Crea un nuevo juego de corrección de código ensamblador.
-    
-    Parameters:
-    - **request**: Configuración del juego
-    
-    Returns:
-    - **AssemblyResponse**: Juego de código ensamblador configurado
-    """
     try:
-        # Determinar la arquitectura según la dificultad
-        architectures = {
-            "easy": ["x86 básico", "MIPS básico"],
-            "medium": ["x86", "MIPS", "ARM básico"],
-            "hard": ["x86-64", "ARM", "RISC-V"]
-        }
+        difficulty_config = DIFFICULTY_CONFIG[request.difficulty]["assembly"]
         
-        import random
-        difficulty = request.difficulty.lower()
-        architecture = random.choice(architectures.get(difficulty, ["x86"]))
+        # Generar ejercicio específico con IA mejorada
+        exercise_data = await llm_service.generate_assembly_exercise(
+            difficulty=request.difficulty,
+            architecture=difficulty_config["architecture"],
+            error_type=difficulty_config["error_type"],
+            instructions_count=difficulty_config["instructions_count"]
+        )
         
-        # Generar prompt para el LLM
-        prompt = f"""
-        Crea un ejercicio de código ensamblador con errores para arquitectura de computadoras.
-        Arquitectura: {architecture}
-        Nivel de dificultad: {request.difficulty}
-        
-        Proporciona:
-        1. Un fragmento de código en ensamblador con UN error o una parte faltante
-        2. El comportamiento esperado del código cuando se corrija
-        3. Una pista sobre dónde está el problema
-        4. La solución correcta (para validación)
-        
-        El código debe ser simple pero educativo, relacionado con:
-        {request.topic or "operaciones básicas, manejo de registros o memoria"}
-        
-        Formato JSON de respuesta:
-        {{
-          "code": "código ensamblador con el error",
-          "expected_behavior": "comportamiento esperado cuando se corrige",
-          "hint": "pista sobre el error",
-          "solution": "código correcto o instrucción que soluciona el problema"
-        }}
-        """
-        
-        # Configurar la estructura esperada para la respuesta JSON
-        expected_structure = {
-            "code": "MOV AX, 5\nADD AX, 10\nMOV BX, AX\nSUB AX, BX\n; El resultado debería ser 0",
-            "expected_behavior": "El programa debe calcular AX = 0",
-            "hint": "Revisa cuidadosamente la instrucción SUB y sus operandos",
-            "solution": "SUB AX, AX"
-        }
-        
-        # Llamar al LLM
-        response_json = await llm_service.generate_json(prompt, expected_structure)
-        
-        # Extraer los valores
-        code = response_json.get("code", "")
-        expected_behavior = response_json.get("expected_behavior", "")
-        hint = response_json.get("hint", "")
-        solution = response_json.get("solution", "")
-        
-        # Validar valores
-        if not code or not expected_behavior or not hint or not solution:
-            raise ValueError("Los datos generados están incompletos")
-        
-        # Generar ID único para el juego
         game_id = f"assembly_{uuid.uuid4().hex}"
         
-        # Guardar el juego en el servicio
         games_service.save_assembly_game(
             game_id=game_id,
-            code=code,
-            architecture=architecture,
-            expected_behavior=expected_behavior,
-            hint=hint,
-            solution=solution
+            code=exercise_data.get("buggy_code", ""),
+            architecture=difficulty_config["architecture"],
+            expected_behavior=exercise_data.get("expected_behavior", ""),
+            hint=exercise_data.get("hint", ""),
+            solution=exercise_data.get("error_explanation", "")
         )
         
         return AssemblyResponse(
             game_id=game_id,
-            code=code,
-            architecture=architecture,
-            expected_behavior=expected_behavior,
-            hint=hint
+            code=exercise_data.get("buggy_code", ""),
+            architecture=difficulty_config["architecture"],
+            expected_behavior=exercise_data.get("expected_behavior", "")[:100],  # Limitado a 100 caracteres
+            hint=exercise_data.get("hint", "")[:100]  # Limitado a 100 caracteres
         )
         
     except Exception as e:
         logger.error(f"Error al crear juego de ensamblador: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al crear el juego de ensamblador"
-        )
-
+        raise HTTPException(status_code=500, detail="Error al crear el juego de ensamblador")
 
 @router.post("/assembly/answer", response_model=AssemblyAnswerResponse)
 async def answer_assembly(request: AssemblyAnswerRequest) -> AssemblyAnswerResponse:
-    """
-    Procesa la solución propuesta para un juego de código ensamblador.
-    
-    Parameters:
-    - **request**: ID del juego y código corregido
-    
-    Returns:
-    - **AssemblyAnswerResponse**: Resultado de la validación con explicación
-    """
     try:
-        # Obtener el juego
         game = games_service.get_assembly_game(request.game_id)
         
         if not game:
             raise HTTPException(status_code=404, detail="Juego no encontrado")
         
-        # Verificar la solución
-        user_code = request.corrected_code
-        solution = game.get("solution", "")
+        # Evaluar explicación usando el servicio
+        updated_game = games_service.assembly_service.evaluate_explanation(
+            request.game_id,
+            request.explanation  # Ahora solo se envía explicación
+        )
         
-        # Verificar si la solución está presente en el código corregido
-        is_correct = solution.strip() in user_code
+        evaluation = updated_game.get("evaluation_result", {})
+        is_correct = evaluation.get("correctness") in ["excellent", "good"]
         
-        # Generar explicación
+        # Generar explicación específica limitada a 100 palabras
         if is_correct:
-            explanation_prompt = f"""
-            Explica por qué la siguiente corrección al código ensamblador es correcta:
-            
-            Problema: {game.get('expected_behavior')}
-            Solución: {solution}
-            
-            Proporciona una explicación detallada y educativa, adecuada para un estudiante universitario.
-            """
-            
-            explanation = await llm_service.generate_text(explanation_prompt)
+            explanation = evaluation.get("feedback", "¡Excelente análisis! Tu explicación demuestra comprensión del error.")
         else:
-            explanation = f"""
-            Tu solución no es correcta. La clave para resolver este problema es:
-            
-            {game.get('hint')}
-            
-            Analiza cuidadosamente el código y el comportamiento esperado.
-            """
+            explanation = evaluation.get("feedback", "Necesitas revisar tu análisis. ") + f" Error real: {game.get('solution', '')[:50]}"
         
         return AssemblyAnswerResponse(
             correct=is_correct,
-            explanation=explanation,
-            correct_solution=None if is_correct else solution
+            explanation=explanation[:400],  # Limitado a 400 caracteres
+            correct_solution=None if is_correct else game.get('solution', '')[:100]
         )
         
     except HTTPException:
         raise
-        
     except Exception as e:
         logger.error(f"Error al procesar respuesta de ensamblador: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error al procesar la respuesta"
-        )
+        raise HTTPException(status_code=500, detail="Error al procesar la respuesta de ensamblador")
