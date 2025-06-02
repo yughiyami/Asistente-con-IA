@@ -233,18 +233,7 @@ class GamesService:
         """
         return self.logic_diagram_service.get_game(game_id)
     
-    def update_logic_game_explanation(self, game_id: str, explanation: str) -> bool:
-        """
-        Agrega una explicación educativa a un juego de Diagrama Lógico.
-        
-        Args:
-            game_id: Identificador del juego
-            explanation: Explicación educativa sobre el patrón lógico
-            
-        Returns:
-            True si se actualizó correctamente, False en caso contrario
-        """
-        return self.logic_diagram_service.add_explanation(game_id, explanation)
+
     
     # Métodos para el juego de Ensamblador
     
@@ -292,18 +281,7 @@ class GamesService:
         """
         return self.assembly_service.get_game(game_id)
     
-    def update_assembly_game_explanation(self, game_id: str, explanation: str) -> bool:
-        """
-        Agrega una explicación educativa a un juego de Ensamblador.
-        
-        Args:
-            game_id: Identificador del juego
-            explanation: Explicación educativa sobre la solución correcta
-            
-        Returns:
-            True si se actualizó correctamente, False en caso contrario
-        """
-        return self.assembly_service.add_explanation(game_id, explanation)
+
     
     # Métodos generales para todos los juegos
     
@@ -333,7 +311,238 @@ class GamesService:
             "assembly": assembly_deleted,
             "total": total_deleted
         }
-
+    def evaluate_logic_circuit(
+        self, 
+        game_id: str, 
+        user_answer: int
+    ) -> bool:
+        """
+        Evalúa la respuesta del usuario para un circuito lógico - SIMPLIFICADO.
+        
+        Args:
+            game_id: Identificador del juego
+            user_answer: Respuesta del usuario (0 o 1)
+            
+        Returns:
+            True si se evaluó correctamente, False en caso contrario
+        """
+        try:
+            updated_game = self.logic_diagram_service.evaluate_circuit(game_id, user_answer)
+            return updated_game.get("answered", False)
+        except Exception as e:
+            logger.error(f"Error evaluando circuito lógico {game_id}: {str(e)}")
+            return False
+    
+    def get_logic_circuit_info(self, game_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene información detallada del circuito para explicaciones.
+        
+        Args:
+            game_id: Identificador del juego
+            
+        Returns:
+            Información del circuito o None si no existe
+        """
+        return self.logic_diagram_service.get_circuit_info(game_id)
+    
+    # Métodos mejorados para el juego de Ensamblador
+    
+    def evaluate_assembly_explanation(
+        self, 
+        game_id: str, 
+        user_explanation: str
+    ) -> bool:
+        """
+        Evalúa la explicación del usuario sobre el error de ensamblador.
+        
+        Args:
+            game_id: Identificador del juego
+            user_explanation: Explicación del usuario sobre el error
+            
+        Returns:
+            True si se evaluó correctamente, False en caso contrario
+        """
+        try:
+            updated_game = self.assembly_service.evaluate_explanation(game_id, user_explanation)
+            return updated_game.get("answered", False)
+        except Exception as e:
+            logger.error(f"Error evaluando explicación de ensamblador {game_id}: {str(e)}")
+            return False
+    
+    def get_assembly_feedback(self, game_id: str) -> Optional[str]:
+        """
+        Obtiene feedback específico para un juego de ensamblador.
+        
+        Args:
+            game_id: Identificador del juego
+            
+        Returns:
+            Feedback específico o None si no existe
+        """
+        return self.assembly_service.generate_specific_feedback(game_id)
+    
+    # Métodos de utilidad para validación mejorada
+    
+    def validate_game_responses(self, game_type: str, responses: Dict[str, Any]) -> bool:
+        """
+        Valida que las respuestas de un juego cumplan con los criterios específicos.
+        
+        Args:
+            game_type: Tipo de juego
+            responses: Respuestas a validar
+            
+        Returns:
+            True si las respuestas son válidas, False en caso contrario
+        """
+        try:
+            if game_type == "hangman":
+                # Validar que la adivinanza sea una sola letra o palabra
+                guess = responses.get("guess", "")
+                return isinstance(guess, str) and len(guess) >= 1 and guess.isalpha()
+            
+            elif game_type == "wordle":
+                # Validar que la palabra sea exactamente de 5 letras
+                word = responses.get("word", "")
+                return isinstance(word, str) and len(word) == 5 and word.isalpha()
+            
+            elif game_type == "logic":
+                # Validar que la respuesta sea 0 o 1
+                answers = responses.get("answers", [])
+                return (isinstance(answers, list) and 
+                       len(answers) == 1 and 
+                       answers[0] in [0, 1])
+            
+            elif game_type == "assembly":
+                # Validar que haya una explicación con al menos 10 caracteres
+                explanation = responses.get("explanation", "")
+                return (isinstance(explanation, str) and 
+                       len(explanation.strip()) >= 10)
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error validando respuestas para {game_type}: {str(e)}")
+            return False
+    
+    def get_game_progress(self, game_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene el progreso actual de cualquier tipo de juego.
+        
+        Args:
+            game_id: Identificador del juego
+            
+        Returns:
+            Información de progreso del juego o None si no existe
+        """
+        # Determinar tipo de juego por el prefijo del ID
+        if game_id.startswith("hangman_"):
+            game = self.get_hangman_game(game_id)
+            if game:
+                return {
+                    "type": "hangman",
+                    "completed": game.get("game_over", False),
+                    "success": game.get("win", False),
+                    "progress": f"{game.get('remaining_attempts', 0)} intentos restantes"
+                }
+        
+        elif game_id.startswith("wordle_"):
+            game = self.get_wordle_game(game_id)
+            if game:
+                attempts_used = len(game.get("attempts", []))
+                max_attempts = game.get("max_attempts", 6)
+                return {
+                    "type": "wordle",
+                    "completed": game.get("game_over", False),
+                    "success": game.get("win", False),
+                    "progress": f"{attempts_used}/{max_attempts} intentos usados"
+                }
+        
+        elif game_id.startswith("logic_"):
+            game = self.get_logic_game(game_id)
+            if game:
+                return {
+                    "type": "logic",
+                    "completed": game.get("answered", False),
+                    "success": game.get("correct", False),
+                    "progress": "Evaluación de circuito lógico"
+                }
+        
+        elif game_id.startswith("assembly_"):
+            game = self.get_assembly_game(game_id)
+            if game:
+                return {
+                    "type": "assembly",
+                    "completed": game.get("answered", False),
+                    "success": game.get("evaluation_result", {}).get("correctness") in ["excellent", "good"],
+                    "progress": "Análisis de código ensamblador"
+                }
+        
+        return None
+    
+    def get_difficulty_stats(self) -> Dict[str, Dict[str, int]]:
+        """
+        Obtiene estadísticas de juegos por dificultad.
+        
+        Returns:
+            Estadísticas de juegos creados por tipo y dificultad
+        """
+        stats = {
+            "easy": {"hangman": 0, "wordle": 0, "logic": 0, "assembly": 0},
+            "medium": {"hangman": 0, "wordle": 0, "logic": 0, "assembly": 0},
+            "hard": {"hangman": 0, "wordle": 0, "logic": 0, "assembly": 0}
+        }
+        
+        # Contar juegos de hangman
+        for game in self.hangman_service._games.values():
+            difficulty = "medium"  # Por defecto, habría que agregar difficulty al juego
+            if game.get("max_attempts", 6) >= 8:
+                difficulty = "easy"
+            elif game.get("max_attempts", 6) <= 5:
+                difficulty = "hard"
+            stats[difficulty]["hangman"] += 1
+        
+        # Contar juegos de wordle
+        for game in self.wordle_service._games.values():
+            difficulty = "medium"  # Por defecto
+            if game.get("max_attempts", 6) >= 7:
+                difficulty = "easy"
+            elif game.get("max_attempts", 6) <= 5:
+                difficulty = "hard"
+            stats[difficulty]["wordle"] += 1
+        
+        # Contar juegos de logic
+        for game in self.logic_diagram_service._games.values():
+            difficulty = "medium"  # Se podría inferir de la complejidad del circuito
+            stats[difficulty]["logic"] += 1
+        
+        # Contar juegos de assembly
+        for game in self.assembly_service._games.values():
+            difficulty = "medium"  # Se podría inferir de la cantidad de líneas
+            stats[difficulty]["assembly"] += 1
+        
+        return stats
+    
+    def clean_old_games_by_type(self, game_type: str, max_age_hours: int = 24) -> int:
+        """
+        Limpia juegos antiguos de un tipo específico.
+        
+        Args:
+            game_type: Tipo de juego a limpiar
+            max_age_hours: Edad máxima en horas
+            
+        Returns:
+            Número de juegos eliminados
+        """
+        if game_type == "hangman":
+            return self.hangman_service.clean_old_games(max_age_hours)
+        elif game_type == "wordle":
+            return self.wordle_service.clean_old_games(max_age_hours)
+        elif game_type == "logic":
+            return self.logic_diagram_service.clean_old_games(max_age_hours)
+        elif game_type == "assembly":
+            return self.assembly_service.clean_old_games(max_age_hours)
+        else:
+            return 0
 
 # Instancia global del servicio
 games_service = GamesService()

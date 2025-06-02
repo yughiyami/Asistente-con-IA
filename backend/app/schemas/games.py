@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from enum import Enum
 import uuid
 
-
 class GameType(str, Enum):
     """Tipos de juegos disponibles en el sistema."""
     HANGMAN = "hangman"  # Ahorcado
@@ -26,12 +25,7 @@ class DifficultyLevel(str, Enum):
 
 class GameRequest(BaseModel):
     """
-    Solicitud para generar un juego.
-    
-    Attributes:
-        game_type: Tipo de juego solicitado
-        difficulty: Nivel de dificultad
-        topic: Tema específico (opcional)
+    Solicitud para generar un juego - SIN CAMBIOS.
     """
     game_type: GameType = Field(..., 
                                description="Tipo de juego a generar")
@@ -39,33 +33,25 @@ class GameRequest(BaseModel):
                                       description="Nivel de dificultad")
     topic: Optional[str] = Field(default=None,
                                description="Tema específico para el juego",
-                               example="Memoria caché")
+                               example="procesador")
 
 
-# Esquemas para el juego de Ahorcado (Hangman)
+# Esquemas para el juego de Ahorcado (Hangman) - SIN CAMBIOS MAYORES
 
 class HangmanResponse(BaseModel):
-    """
-    Respuesta para el juego de Ahorcado.
-    
-    Attributes:
-        game_id: Identificador único del juego
-        word_length: Longitud de la palabra a adivinar
-        clue: Pista sobre la palabra
-        argument: Explicación educativa sobre el término
-        max_attempts: Número máximo de intentos permitidos
-        hidden_word: Representación inicial de la palabra oculta
-    """
+    """Respuesta para el juego de Ahorcado - Limitado a 100 palabras en campos de texto."""
     game_id: str = Field(default_factory=lambda: str(uuid.uuid4()),
                        description="Identificador único del juego")
     word_length: int = Field(..., 
                            description="Longitud de la palabra a adivinar")
     clue: str = Field(..., 
-                     description="Pista sobre la palabra",
-                     example="Componente que almacena temporalmente datos e instrucciones")
+                     description="Pista sobre la palabra (máximo 100 caracteres)",
+                     max_length=100,
+                     example="Componente que almacena temporalmente datos")
     argument: str = Field(..., 
-                         description="Explicación educativa sobre el término",
-                         example="Este componente es fundamental en la arquitectura de computadoras debido a su velocidad de acceso...")
+                         description="Explicación educativa sobre el término (máximo 100 caracteres)",
+                         max_length=100,
+                         example="Fundamental en arquitectura por su velocidad de acceso")
     max_attempts: int = Field(default=6,
                             description="Número máximo de intentos permitidos")
     hidden_word: str = Field(..., 
@@ -74,13 +60,7 @@ class HangmanResponse(BaseModel):
 
 
 class HangmanGuessRequest(BaseModel):
-    """
-    Solicitud para adivinar una letra o palabra en el juego de Ahorcado.
-    
-    Attributes:
-        game_id: Identificador del juego
-        guess: Letra o palabra adivinada
-    """
+    """Solicitud para adivinar una letra o palabra en el juego de Ahorcado - SIN CAMBIOS."""
     game_id: str = Field(..., 
                          description="Identificador del juego")
     guess: str = Field(..., 
@@ -89,17 +69,7 @@ class HangmanGuessRequest(BaseModel):
 
 
 class HangmanGuessResponse(BaseModel):
-    """
-    Respuesta a un intento de adivinanza en el juego de Ahorcado.
-    
-    Attributes:
-        correct: Si la letra/palabra es correcta
-        current_word: Estado actual de la palabra con las letras adivinadas
-        remaining_attempts: Intentos restantes
-        game_over: Si el juego ha terminado
-        win: Si el jugador ha ganado (solo cuando game_over=True)
-        correct_word: Palabra correcta (solo cuando game_over=True)
-    """
+    """Respuesta a un intento de adivinanza en el juego de Ahorcado - SIN CAMBIOS."""
     correct: bool = Field(..., 
                          description="Si la letra/palabra es correcta")
     current_word: str = Field(..., 
@@ -115,18 +85,10 @@ class HangmanGuessResponse(BaseModel):
                                      description="Palabra correcta (solo cuando game_over=True)")
 
 
-# Esquemas para el juego de Wordle
+# Esquemas para el juego de Wordle - LIMITADO A 100 PALABRAS
 
 class WordleResponse(BaseModel):
-    """
-    Respuesta para el juego de Wordle.
-    
-    Attributes:
-        game_id: Identificador único del juego
-        word_length: Longitud de la palabra (siempre 5)
-        max_attempts: Número máximo de intentos permitidos
-        topic_hint: Pista sobre el tema de la palabra
-    """
+    """Respuesta para el juego de Wordle - Limitado a 100 palabras en campos de texto."""
     game_id: str = Field(default_factory=lambda: str(uuid.uuid4()),
                        description="Identificador único del juego")
     word_length: int = Field(default=5,
@@ -134,18 +96,13 @@ class WordleResponse(BaseModel):
     max_attempts: int = Field(default=6,
                             description="Número máximo de intentos permitidos")
     topic_hint: str = Field(..., 
-                           description="Pista sobre el tema de la palabra",
+                           description="Pista sobre el tema de la palabra (máximo 100 caracteres)",
+                           max_length=100,
                            example="Relacionado con almacenamiento de datos")
 
 
 class WordleGuessRequest(BaseModel):
-    """
-    Solicitud para adivinar una palabra en el juego de Wordle.
-    
-    Attributes:
-        game_id: Identificador del juego
-        word: Palabra de 5 letras adivinada
-    """
+    """Solicitud para adivinar una palabra en el juego de Wordle - SIN CAMBIOS."""
     game_id: str = Field(..., 
                          description="Identificador del juego")
     word: str = Field(..., 
@@ -155,24 +112,14 @@ class WordleGuessRequest(BaseModel):
 
 
 class LetterResult(str, Enum):
-    """Resultado de cada letra en Wordle."""
+    """Resultado de cada letra en Wordle - SIN CAMBIOS."""
     CORRECT = "correct"  # Letra correcta en posición correcta
     PRESENT = "present"  # Letra correcta en posición incorrecta
     ABSENT = "absent"    # Letra no presente en la palabra
 
 
 class WordleGuessResponse(BaseModel):
-    """
-    Respuesta a un intento de adivinanza en el juego de Wordle.
-    
-    Attributes:
-        results: Lista de resultados para cada letra
-        attempt_number: Número de intento actual
-        remaining_attempts: Intentos restantes
-        game_over: Si el juego ha terminado
-        win: Si el jugador ha ganado (solo cuando game_over=True)
-        correct_word: Palabra correcta (solo cuando game_over=True)
-    """
+    """Respuesta a un intento de adivinanza en el juego de Wordle - Limitado a 100 palabras."""
     results: List[LetterResult] = Field(..., 
                                       description="Resultados para cada letra",
                                       example=["correct", "absent", "present", "absent", "correct"])
@@ -187,133 +134,130 @@ class WordleGuessResponse(BaseModel):
     correct_word: Optional[str] = Field(default=None,
                                      description="Palabra correcta (solo cuando game_over=True)")
     explanation: Optional[str] = Field(default=None,
-                                    description="Explicación del término cuando el juego termina",
-                                    example="Cache es un componente de hardware o software que almacena datos para que futuras solicitudes de esos datos puedan ser atendidas más rápidamente.")
+                                    description="Explicación del término cuando el juego termina (máximo 400 caracteres)",
+                                    max_length=400,
+                                    example="Cache: componente que almacena datos para acceso rápido.")
 
 
-# Esquemas para el juego de Diagrama Lógico
+# Esquemas para el juego de Diagrama Lógico - COMPLETAMENTE REDISEÑADO
 
 class LogicResponse(BaseModel):
     """
-    Respuesta para el juego de Diagrama Lógico.
+    Respuesta para el juego de Diagrama Lógico - CON COMPLEJIDAD VARIABLE.
     
     Attributes:
         game_id: Identificador único del juego
-        pattern: Descripción del patrón lógico
-        question: Pregunta sobre el patrón
-        input_values: Lista de valores de entrada de ejemplo
-        expected_output: Lista de valores de salida esperados
+        difficulty: Nivel de dificultad del juego
+        pattern: Lista de compuertas en orden de ejecución
+        question: Pregunta sobre el circuito
+        input_values: Matriz de entradas y salidas por compuerta en orden
+        expected_output: Salida esperada (simple para easy, compleja para medium/hard)
+        complexity_type: Tipo de complejidad según dificultad
     """
     game_id: str = Field(default_factory=lambda: str(uuid.uuid4()),
                        description="Identificador único del juego")
-    pattern: str = Field(..., 
-                        description="Descripción del patrón lógico",
-                        example="Compuerta AND con tres entradas")
+    difficulty: str = Field(...,
+                          description="Nivel de dificultad del juego",
+                          example="medium")
+    pattern: List[str] = Field(..., 
+                              description="Lista de compuertas en orden de ejecución",
+                              example=["AND", "OR", "XOR"])
     question: str = Field(..., 
-                         description="Pregunta sobre el patrón",
-                         example="¿Cuál sería la salida si las entradas son 1, 0, 1?")
-    input_values: List[List[Union[int, str]]] = Field(..., 
-                                              description="Lista de valores de entrada de ejemplo",
-                                              example=[[1, 1, 1], [1, 0, 1], [0, 1, 1]])
-    expected_output: List[Union[int, str]] = Field(..., 
-                                           description="Lista de valores de salida esperados",
-                                           example=[1, 0, 0])
+                         description="Pregunta sobre el circuito",
+                         example="¿Cuáles son las salidas para los casos de prueba?")
+    input_values: List[List[int]] = Field(..., 
+                                         description="Matriz de entradas y salidas por compuerta en orden",
+                                         example=[[1, 1, 1], [1, 0, 1], [1, 1, 0]])
+    expected_output: Union[int, List[int], Dict[str, Union[int, List[int]]]] = Field(..., 
+                                description="Salida esperada (varía según dificultad)",
+                                example={"case1": 0, "case2": 1, "pattern": [0, 1, 0, 1]})
+    complexity_type: str = Field(...,
+                                description="Tipo de complejidad",
+                                example="multiple_cases")
 
 
 class LogicAnswerRequest(BaseModel):
     """
-    Solicitud para responder al juego de Diagrama Lógico.
+    Solicitud para responder al juego de Diagrama Lógico - CON COMPLEJIDAD VARIABLE.
     
     Attributes:
         game_id: Identificador del juego
-        answers: Lista de respuestas para cada entrada
+        answer: Respuesta del usuario (varía según dificultad)
     """
     game_id: str = Field(..., 
                          description="Identificador del juego")
-    answers: List[Union[int, str]] = Field(..., 
-                                   description="Lista de respuestas para cada entrada",
-                                   example=[1, 0, 0])
+    answer: Union[int, List[int], Dict[str, Union[int, List[int]]]] = Field(..., 
+                       description="Respuesta del usuario (varía según dificultad)",
+                       example={"case1": 0, "case2": 1, "pattern": [0, 1, 0, 1]})
 
 
 class LogicAnswerResponse(BaseModel):
     """
-    Respuesta a la solución propuesta para el juego de Diagrama Lógico.
-    
-    Attributes:
-        correct: Si todas las respuestas son correctas
-        correct_answers: Lista de respuestas correctas
-        explanation: Explicación de la lógica del patrón
+    Respuesta a la solución propuesta para el juego de Diagrama Lógico - CON COMPLEJIDAD VARIABLE.
     """
     correct: bool = Field(..., 
-                         description="Si todas las respuestas son correctas")
-    correct_answers: List[Union[int, str]] = Field(..., 
-                                           description="Lista de respuestas correctas")
+                         description="Si la respuesta es correcta")
+    correct_answer: Union[int, List[int], Dict[str, Union[int, List[int]]]] = Field(..., 
+                               description="Respuesta correcta")
+    partial_score: Optional[float] = Field(default=None,
+                                         description="Puntuación parcial para respuestas complejas")
     explanation: str = Field(..., 
-                            description="Explicación de la lógica del patrón",
-                            example="Una compuerta AND de tres entradas produce un 1 en la salida solo cuando todas las entradas son 1, en cualquier otro caso produce un 0.")
+                            description="Explicación del funcionamiento del circuito (máximo 400 caracteres)",
+                            max_length=400,
+                            example="Caso 1: AND(1,1)=1, OR(1,0)=1, XOR(1,1)=0. Caso 2: AND(0,1)=0, OR(0,1)=1, XOR(1,1)=0.")
+    complexity_feedback: Optional[str] = Field(default=None,
+                                             description="Retroalimentación específica sobre la complejidad")
 
-
-# Esquemas para el juego de Ensamblador
+# Esquemas para el juego de Ensamblador - COMPLETAMENTE REDISEÑADO
 
 class AssemblyResponse(BaseModel):
     """
-    Respuesta para el juego de Ensamblador.
-    
-    Attributes:
-        game_id: Identificador único del juego
-        code: Código en ensamblador con errores
-        architecture: Arquitectura del ensamblador (MIPS, x86, etc.)
-        expected_behavior: Comportamiento esperado del código
-        hint: Pista sobre el error
+    Respuesta para el juego de Ensamblador - Limitado a 100 palabras en campos de texto.
     """
     game_id: str = Field(default_factory=lambda: str(uuid.uuid4()),
                        description="Identificador único del juego")
     code: str = Field(..., 
                      description="Código en ensamblador con errores",
-                     example="MOV AX, 5\nADD AX, 10\nMOV BX, AX\nSUB AX, BX\n; El resultado debería ser 0")
+                     example="MOV AX, 5\nADD AX, 10\nMOV BX, AX\nSUB AX, BX")
     architecture: str = Field(..., 
                             description="Arquitectura del ensamblador",
                             example="x86")
     expected_behavior: str = Field(..., 
-                                 description="Comportamiento esperado del código",
+                                 description="Comportamiento esperado del código (máximo 100 caracteres)",
+                                 max_length=100,
                                  example="El programa debe calcular AX = 0")
     hint: str = Field(..., 
-                     description="Pista sobre el error",
-                     example="Revisa cuidadosamente la instrucción SUB y sus operandos")
+                     description="Pista sobre el error (máximo 100 caracteres)",
+                     max_length=100,
+                     example="Revisa la instrucción SUB y sus operandos")
 
 
 class AssemblyAnswerRequest(BaseModel):
     """
-    Solicitud para responder al juego de Ensamblador.
+    Solicitud para responder al juego de Ensamblador - REDISEÑADO: SOLO EXPLICACIÓN.
     
     Attributes:
         game_id: Identificador del juego
-        corrected_code: Código corregido
-        explanation: Explicación de la corrección
+        explanation: Explicación del error o código correcto con palabras del usuario
     """
     game_id: str = Field(..., 
                          description="Identificador del juego")
-    corrected_code: str = Field(..., 
-                              description="Código corregido",
-                              example="MOV AX, 5\nADD AX, 10\nMOV BX, AX\nSUB AX, AX\n; El resultado es 0")
-    explanation: Optional[str] = Field(default=None,
-                                    description="Explicación de la corrección",
-                                    example="La instrucción SUB AX, BX restaba BX de AX, pero necesitábamos AX - AX para obtener 0")
+    explanation: str = Field(..., 
+                           description="Explicación del error encontrado en el código o descripción de la corrección",
+                           min_length=10,
+                           example="El error está en la instrucción SUB AX, BX porque debería ser SUB AX, AX para obtener 0, ya que cualquier número menos sí mismo es 0.")
 
 
 class AssemblyAnswerResponse(BaseModel):
     """
-    Respuesta a la solución propuesta para el juego de Ensamblador.
-    
-    Attributes:
-        correct: Si la corrección es correcta
-        explanation: Explicación detallada
-        correct_solution: Posible solución correcta (cuando la respuesta es incorrecta)
+    Respuesta a la solución propuesta para el juego de Ensamblador - Limitado a 100 palabras.
     """
     correct: bool = Field(..., 
-                         description="Si la corrección es correcta")
+                         description="Si la explicación es correcta")
     explanation: str = Field(..., 
-                            description="Explicación detallada",
-                            example="¡Correcto! La instrucción SUB AX, BX restaba BX de AX, lo que daba un resultado distinto de 0. Al cambiar a SUB AX, AX, siempre obtenemos 0 porque cualquier número menos sí mismo es 0.")
+                            description="Retroalimentación sobre la explicación (máximo 400 caracteres)",
+                            max_length=400,
+                            example="¡Correcto! Identificaste que SUB AX, BX era incorrecto. La solución SUB AX, AX es perfecta.")
     correct_solution: Optional[str] = Field(default=None,
-                                         description="Posible solución correcta (cuando la respuesta es incorrecta)")
+                                         description="Solución correcta cuando la explicación es incorrecta (máximo 100 caracteres)",
+                                         max_length=100)
