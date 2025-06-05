@@ -8,7 +8,7 @@ import { FiUser, FiCpu, FiImage } from 'react-icons/fi';
 
 // Componentes especializados
 import ExamComponent from '@/views/ia/modules/exam/components/content/exam/ExamComponent';
-import GameComponent from '@/views/ia/modules/games/components/GameComponent';
+import GameComponent from '@/views/ia/modules/games/modules/GameComponent';
 
 interface MessageProps {
   message: MessageType;

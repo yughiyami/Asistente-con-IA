@@ -6,6 +6,7 @@ import Header from './components/header';
 import { useAppRouter } from './hooks/router/useAppRouter';
 import Chat from './modules/chat';
 import Exam from './modules/exam';
+import Game from './modules/games';
 
 export default function AsistenteIA() {
   // const {} = useAppRouter()
@@ -31,7 +32,7 @@ export default function AsistenteIA() {
     router: {
       chat: Chat,
       exam: Exam,
-      game: Footer,
+      game: Game,
     }
   })
 
@@ -43,7 +44,7 @@ export default function AsistenteIA() {
       <div className="flex-1 flex flex-col overflow-hidden max-w-6xl w-full mx-auto">
         {/* <MessageList />
         <MessageInput /> */}
-        <App />
+          <App />
         {/* <Chat /> */}
       </div>
       

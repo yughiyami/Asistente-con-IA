@@ -89,7 +89,10 @@ export default function Message({ message }: MessageProps) {
               {message.images.map((image, index) => (
                 <div key={index} className="relative">
                   <button 
-                    onClick={() => setImageExpanded(image.url)} 
+                    onClick={() => {
+                      console.log("aea")
+                      setImageExpanded(image)
+                    }} 
                     className="block w-full relative rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700"
                   >
                     <img 
@@ -103,9 +106,9 @@ export default function Message({ message }: MessageProps) {
                       <FiImage className="w-8 h-8 text-white" />
                     </div>
                   </button>
-                  <div className="text-xs mt-1 truncate text-gray-600 dark:text-gray-400">
+                  {/* <div className="text-xs mt-1 truncate text-gray-600 dark:text-gray-400">
                     {image.alt_text}
-                  </div>
+                  </div> */}
                 </div>
               ))}
             </div>
@@ -123,7 +126,7 @@ export default function Message({ message }: MessageProps) {
           onClick={() => setImageExpanded(null)}
         >
           <div className="relative max-w-3xl max-h-screen overflow-auto p-4">
-            <Image 
+            <img 
               src={imageExpanded} 
               alt="Imagen ampliada" 
               width={800} 
