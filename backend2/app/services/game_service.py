@@ -34,7 +34,7 @@ class GameService:
         self.redis = redis_service
         
         # Inicializar generadores específicos de juegos
-        self.logic_generator = LogicGameGenerator()
+        self.logic_generator = LogicGameGenerator(gemini_service) 
         self.assembly_generator = AssemblyGameGenerator(gemini_service)
     
     # Métodos para Ahorcado
@@ -282,9 +282,9 @@ class GameService:
         
         truth_table_dict = [row.dict() for row in truth_table]
         # Evaluar respuesta
-        correct, score, explanation = self.logic_generator.evaluate_answer(
+        correct, score, explanation = self.logic_generator.evaluate_answer_with_ai(
             truth_table_dict,
-            game_state["expected_truth_table"]
+            game_state["circuit"]  # Pasar el circuito para contexto
         )
         
         game_state["solved"] = True
@@ -383,49 +383,159 @@ class GameService:
 
 
 class LogicGameGenerator:
-    """Generador de juegos de lógica"""
+    """Generador de juegos de lógica con IA"""
+    
+    def __init__(self, gemini_service: GeminiService):
+        self.gemini = gemini_service
     
     def generate_game(self, difficulty: DifficultyLevel) -> Dict:
-        """Genera un juego de lógica con circuito y tabla de verdad"""
-        if difficulty == DifficultyLevel.EASY:
-            # 2 entradas, 2-3 compuertas
-            circuit = {
+        """Genera un juego de lógica con IA"""
+        num_inputs = 2 if difficulty == DifficultyLevel.EASY else 3
+        num_gates = {
+            DifficultyLevel.EASY: "2-3",
+            DifficultyLevel.MEDIUM: "3-4", 
+            DifficultyLevel.HARD: "4-5"
+        }[difficulty]
+        
+        prompt = f"""Genera un circuito de compuertas lógicas educativo.
+        
+        Requisitos:
+        - {num_inputs} entradas (nombradas A, B{', C' if num_inputs == 3 else ''})
+        - {num_gates} compuertas
+        - Tipos permitidos: AND, OR, NOT, XOR, NAND, NOR
+        - Debe ser interesante pero no demasiado complejo
+        
+        Responde SOLO con un JSON válido:
+        {{
+            "inputs": ["A", "B"{', "C"' if num_inputs == 3 else ''}],
+            "gates": [
+                {{"id": "G1", "type": "tipo", "inputs": ["entrada1", "entrada2"]}},
+                ...
+            ],
+            "output": "ID_compuerta_salida",
+            "description": "descripción del circuito"
+        }}
+        
+        IMPORTANTE: 
+        - NOT solo tiene 1 entrada
+        - Las otras compuertas tienen 2 entradas
+        - Los inputs de una compuerta pueden ser A, B, C o IDs de otras compuertas (G1, G2, etc)
+        - Asegúrate de que el circuito sea válido y no tenga referencias circulares
+        """
+        
+        try:
+            response = self.gemini.model.generate_content(prompt)
+            cleaned_text = response.text.strip()
+            if cleaned_text.startswith('```json'):
+                cleaned_text = cleaned_text[7:]  # Remover ```json
+            if cleaned_text.endswith('```'):
+                cleaned_text = cleaned_text[:-3]  # Remover ```
+            cleaned_text = cleaned_text.strip()
+            # Parsear JSON limpio
+            circuit = json.loads(cleaned_text)
+            
+            # Calcular tabla de verdad
+            truth_table = self._calculate_truth_table(circuit)
+            
+            return {
+                "circuit": circuit,
+                "expected_truth_table": truth_table,
+                "num_inputs": len(circuit["inputs"]),
+                "question": "Completa la tabla de verdad para este circuito"
+            }
+        except Exception as e:
+            # Fallback a circuito predefinido
+            return self._get_fallback_circuit(difficulty)
+    
+    def evaluate_answer_with_ai(self, user_table: List[Dict], circuit: Dict) -> Tuple[bool, float, str]:
+        """Evalúa la tabla de verdad usando IA para feedback más detallado"""
+        # Primero calcular la tabla correcta
+        expected_table = self._calculate_truth_table(circuit)
+        
+        # Comparación básica
+        correct, score, basic_feedback = self.evaluate_answer(user_table, expected_table)
+        
+        # Si hay errores, usar IA para mejor feedback
+        if not correct:
+            prompt = f"""Analiza los errores en esta tabla de verdad.
+            
+            Circuito: {circuit['description']}
+            
+            Tabla esperada:
+            {json.dumps(expected_table, indent=2)}
+            
+            Tabla del estudiante:
+            {json.dumps(user_table, indent=2)}
+            
+            Responde SOLO con un JSON:
+            {{
+                "feedback": "explicación educativa de los errores",
+                "hint": "pista para mejorar",
+                "common_mistake": "error conceptual común si aplica"
+            }}
+            """
+            
+            try:
+                response = self.gemini.model.generate_content(prompt)
+                cleaned_text = response.text.strip()
+                if cleaned_text.startswith('```json'):
+                    cleaned_text = cleaned_text[7:]  # Remover ```json
+                if cleaned_text.endswith('```'):
+                    cleaned_text = cleaned_text[:-3]  # Remover ```
+                cleaned_text = cleaned_text.strip()
+                ai_feedback = json.loads(cleaned_text)
+                
+                enhanced_feedback = f"{basic_feedback}\n\n"
+                enhanced_feedback += f"💡 {ai_feedback['feedback']}\n"
+                enhanced_feedback += f"💭 Pista: {ai_feedback['hint']}"
+                
+                if ai_feedback.get('common_mistake'):
+                    enhanced_feedback += f"\n⚠️ Error común: {ai_feedback['common_mistake']}"
+                
+                return correct, score, enhanced_feedback
+            except:
+                # Si falla IA, usar feedback básico
+                return correct, score, basic_feedback
+        
+        return correct, score, basic_feedback
+    
+    def _get_fallback_circuit(self, difficulty: DifficultyLevel) -> Dict:
+        """Circuitos predefinidos como fallback"""
+        circuits = {
+            DifficultyLevel.EASY: {
                 "inputs": ["A", "B"],
                 "gates": [
                     {"id": "G1", "type": "AND", "inputs": ["A", "B"]},
                     {"id": "G2", "type": "NOT", "inputs": ["G1"]},
                 ],
                 "output": "G2",
-                "description": "A AND B, luego NOT"
-            }
-        elif difficulty == DifficultyLevel.MEDIUM:
-            # 3 entradas, 3-4 compuertas
-            circuit = {
+                "description": "NAND: NOT(A AND B)"
+            },
+            DifficultyLevel.MEDIUM: {
                 "inputs": ["A", "B", "C"],
                 "gates": [
-                    {"id": "G1", "type": "AND", "inputs": ["A", "B"]},
-                    {"id": "G2", "type": "OR", "inputs": ["B", "C"]},
+                    {"id": "G1", "type": "OR", "inputs": ["A", "B"]},
+                    {"id": "G2", "type": "AND", "inputs": ["B", "C"]},
                     {"id": "G3", "type": "XOR", "inputs": ["G1", "G2"]},
                 ],
                 "output": "G3",
-                "description": "(A AND B) XOR (B OR C)"
-            }
-        else:
-            # 3 entradas, 4-5 compuertas complejas
-            circuit = {
+                "description": "(A OR B) XOR (B AND C)"
+            },
+            DifficultyLevel.HARD: {
                 "inputs": ["A", "B", "C"],
                 "gates": [
-                    {"id": "G1", "type": "AND", "inputs": ["A", "B"]},
-                    {"id": "G2", "type": "NOT", "inputs": ["C"]},
-                    {"id": "G3", "type": "OR", "inputs": ["G1", "G2"]},
-                    {"id": "G4", "type": "AND", "inputs": ["B", "C"]},
-                    {"id": "G5", "type": "XOR", "inputs": ["G3", "G4"]},
+                    {"id": "G1", "type": "NOT", "inputs": ["A"]},
+                    {"id": "G2", "type": "AND", "inputs": ["G1", "B"]},
+                    {"id": "G3", "type": "OR", "inputs": ["A", "C"]},
+                    {"id": "G4", "type": "XOR", "inputs": ["G2", "G3"]},
+                    {"id": "G5", "type": "AND", "inputs": ["G4", "B"]},
                 ],
                 "output": "G5",
-                "description": "((A AND B) OR NOT(C)) XOR (B AND C)"
+                "description": "((NOT A AND B) XOR (A OR C)) AND B"
             }
+        }
         
-        # Calcular tabla de verdad esperada
+        circuit = circuits[difficulty]
         truth_table = self._calculate_truth_table(circuit)
         
         return {
@@ -501,9 +611,9 @@ class LogicGameGenerator:
         return 0
     
     def evaluate_answer(self, user_table: List[Dict], expected_table: List[Dict]) -> Tuple[bool, float, str]:
-        """Evalúa la tabla de verdad del usuario"""
+        """Evaluación básica de la tabla de verdad"""
         if len(user_table) != len(expected_table):
-            return False, 0.0, "La tabla debe tener {} filas".format(len(expected_table))
+            return False, 0.0, f"La tabla debe tener {len(expected_table)} filas"
         
         correct_rows = 0
         errors = []
@@ -525,10 +635,12 @@ class LogicGameGenerator:
         if score == 1.0:
             return True, 1.0, "¡Perfecto! Tabla de verdad completamente correcta."
         else:
-            error_msg = "Errores encontrados:\n" + "\n".join(errors[:3])  # Mostrar máx 3 errores
+            error_msg = "Errores encontrados:\n" + "\n".join(errors[:3])
             if len(errors) > 3:
                 error_msg += f"\n... y {len(errors) - 3} errores más"
             return False, score, error_msg
+        
+
 
 class AssemblyGameGenerator:
     """Generador de juegos de ensamblador Intel x86"""
