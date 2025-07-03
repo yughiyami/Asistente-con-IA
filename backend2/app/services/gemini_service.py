@@ -169,8 +169,9 @@ class GeminiService:
         """Construye el prompt para generar examen"""
         subtopics_str = ", ".join(subtopics) if subtopics else "todos los aspectos relevantes"
         
-        prompt = f"""Genera {num_questions} preguntas de opción múltiple sobre {topic} 
-        con nivel de dificultad {difficulty}.
+        prompt = f"""Genera {num_questions} preguntas  de opción múltiple sobre {topic} ,teniendo de base la 
+         arquitectura de computadoras,
+         con nivel de dificultad {difficulty}.
         
         Subtemas a cubrir: {subtopics_str}
         
@@ -196,8 +197,10 @@ class GeminiService:
         Asegúrate de que:
         1. Las preguntas sean técnicamente precisas
         2. Las opciones incorrectas sean plausibles
-        3. Cubran diferentes aspectos del tema
-        4. Sean apropiadas para el nivel de dificultad
+        3. Cubran diferentes aspectos del tema ,solo y unicamente de arquitectura de computadoras
+        4. Las preguntas sean claras y concisas
+        5. Sean apropiadas para el nivel de dificultad
+        6. Que siempre sea un json válido
         """
         return prompt
     
@@ -259,4 +262,3 @@ class GeminiService:
             role = "Usuario" if msg['role'] == 'user' else "Asistente"
             formatted.append(f"{role}: {msg['content']}")
         
-        return "\n".join(formatted)
