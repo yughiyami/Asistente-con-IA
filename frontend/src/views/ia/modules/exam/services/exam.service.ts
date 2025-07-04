@@ -59,7 +59,7 @@ export async function validateExam({exam_id, questions, ...props}: Exam): Promis
     answers[question.id] = question.chosen_answer as string ?? ""
   })
 
-  const {score, question_results, feedback, time_taken_seconds} = await examService.submitExam({
+  const {score, question_results, feedback} = await examService.submitExam({
     exam_id,
     answers
   })

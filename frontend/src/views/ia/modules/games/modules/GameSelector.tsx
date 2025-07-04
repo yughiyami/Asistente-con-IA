@@ -3,7 +3,7 @@
 import { FiCpu, FiCode, FiGrid, FiTerminal, FiHardDrive, FiHash } from 'react-icons/fi';
 
 interface GameSelectorProps {
-  onSelectGame: (gameType: string, config?: any) => void;
+  onSelectGame: (gameType: string, config?: unknown) => void;
 }
 
 export default function GameSelector({ onSelectGame }: GameSelectorProps) {

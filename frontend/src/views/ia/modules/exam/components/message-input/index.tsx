@@ -3,17 +3,14 @@ import { useAppStore } from '@/store/store';
 import PromptForm from '@/views/ia/components/forms';
 import { toast } from 'sonner';
 import { useExamStore } from '@/store/exam';
-import { generateExam, makeExam } from '../../services/exam.service';
-import { examTest } from '../../test/exam';
+import { generateExam } from '../../services/exam.service';
 export default function MessageInput() {
   
   const { 
     mode, 
-    sessionId, 
-    setSessionId, 
     setLoading, 
-    addMessage, 
-    predefinedPrompts
+    predefinedPrompts,
+    addMessage,
   } = useAppStore();
 
 
@@ -33,13 +30,11 @@ export default function MessageInput() {
     };
     
     // Añadir mensaje a la UI
-    console.log("Logged exam")
-    // addMessage(userMessage);
+    addMessage(userMessage);
     setLoading(true);
     
     try {
       // Enviar mensaje al backend
-      console.log("GG, go to exam")
       const exam = await generateExam({
         topic: input,
         difficulty: "medium",
@@ -66,8 +61,8 @@ export default function MessageInput() {
         // } : undefined,
       };
       // Añadir respuesta a la UI
-      // addMessage(assistantMessage);
-      console.log("Exam", exam)
+      addMessage(assistantMessage);
+
       setExam(exam)
       // toast.success('Examen insertado con éxito!')
       

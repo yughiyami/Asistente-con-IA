@@ -1,7 +1,6 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import React, { useEffect, useRef } from "react"
-import ReactMarkdown from 'react-markdown';
 import { CreateAssemblyGame, GuessAssemblyWord } from "./services/Assembly";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ export default function useAssembly(){
   const [finalResult, setFinalResult] = React.useState("")
   
   const pending = useRef(false)
-
+  const [score, setScore] = React.useState<number | undefined>()
   const [difficulty, setDifficulty] = React.useState("medium")
   const response = useRef<HTMLTextAreaElement>(null)
 
@@ -85,6 +84,7 @@ export default function useAssembly(){
     setFinalResult(correct ? "MUY BIEN !!!" : "Tienes trabajo pendiente, Continua !!!")
     // setHint(correct ? "" : hint)
     setHint(feedback)
+    setScore(score)
     // setExplanation(explication)
     setExpected_behaviour(explication)
     pending.current = false
@@ -139,7 +139,7 @@ export default function useAssembly(){
               <CardTitle>
                 Explique el error del siguiente fragmento de codigo en Assebly <br/>
                 <small className="opacity-50">
-                  {architecture}
+                  {architecture} || {score ? `- Puntaje: ${score}` : ""}
                 </small>
               </CardTitle>
               <CardDescription>
@@ -167,7 +167,7 @@ export default function useAssembly(){
           </Card>
         </div>
         <div>
-          <Card>
+          <Card className="max-h-96 overflow-y-scroll">
             <CardHeader>
               <CardTitle>
                 Comportamiento esperado

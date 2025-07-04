@@ -57,7 +57,7 @@ export default function useWordle(){
       })
 
       const newAttempt: WordleAttempt = []
-      for(let i = 0; i < wordSize; i++){
+      for(let i = 0; i < word_length; i++){
         newAttempt.push({
           value : "",
           status: "none"
@@ -66,7 +66,7 @@ export default function useWordle(){
 
       
       const a = [newAttempt]
-      for(let i = 1; i < maxAttempts; i++){
+      for(let i = 1; i < max_attempts; i++){
         a.push([])
       }
 
@@ -79,9 +79,10 @@ export default function useWordle(){
 
       pending.current = false
     }
+
     fetchData()
     
-  }, [wordSize, maxAttempts, newAttempt, isOpen])
+  }, [ isOpen, difficulty, topic])
 
   useEffect(() => {
     if(!isOpen){

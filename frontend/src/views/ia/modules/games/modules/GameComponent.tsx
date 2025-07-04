@@ -16,7 +16,7 @@ import Hangman from './Hangman';
 import GameSelector from './GameSelector';
 
 interface GameComponentProps {
-  data: any;
+  data: unknown;
 }
 
 export default function GameComponent({ data }: GameComponentProps) {
@@ -34,7 +34,7 @@ export default function GameComponent({ data }: GameComponentProps) {
   }, [data]);
   
   // Inicializar un nuevo juego
-  const initializeGame = async (gameType: string, config?: any) => {
+  const initializeGame = async (gameType: string, config?: unknown) => {
     setLoading(true);
     try {
       const gameData = await gameService.initializeGame(gameType, config);

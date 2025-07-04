@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Exam, ExamResult, Game, GameAction } from '@/types';
+import { Game, GameAction } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -13,7 +13,7 @@ const api = axios.create({
 
 // Servicios para juegos
 export const gameService = {
-  initializeGame: async (gameType: string, config?: any): Promise<Game> => {
+  initializeGame: async (gameType: string, config?: unknown): Promise<Game> => {
     const response = await api.post('/game/initialize', {
       game_type: gameType,
       config: config || {}

@@ -24,7 +24,7 @@ export interface User {
   
   export interface SpecialContent {
     type: 'exam' | 'game' | 'diagram' | 'chat';  // Add 'chat' as a valid type
-    data: any;
+    data: unknown;
   }
   
   // Tipos para Chat
@@ -37,7 +37,7 @@ export interface User {
   export interface ChatResponse {
     message: string;
     images?: ImageInfo[];
-    special_content?: any;
+    special_content?: unknown;
   }
   
   // Tipos para Exámenes
@@ -90,7 +90,7 @@ export interface User {
   export interface Game {
     game_id: string;
     game_type: string;
-    state: any;
+    state: unknown;
     message?: string;
     completed: boolean;
     score?: number;
@@ -98,7 +98,7 @@ export interface User {
   
   export interface GameAction {
     action: string;
-    data?: any;
+    data?: unknown;
   }
   
   // Tipos para temas predefinidos

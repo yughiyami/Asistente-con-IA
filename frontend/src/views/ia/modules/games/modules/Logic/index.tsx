@@ -1,13 +1,13 @@
 "use client"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import ReactMarkdown from 'react-markdown';
 import { Button } from "@/components/ui/button";
 import { CreateLogicGame, GuessLogicWord } from "./services/Logic";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { SimpleLogicGate } from "./components/Circuit";
+import Circuit from "./components/Circuit";
 
 export default function useLogic(){
   
@@ -17,8 +17,21 @@ export default function useLogic(){
   const [question, setQuestion] = React.useState<string>("")
   const [description, setDescription] = React.useState<string>("")
 
-  const [pattern, setPattern] = React.useState<("AND" | "XOR" | "NAND" | "XNOR" | "OR" | "NOR")[]>([])
-  const [input_values, setInput_values] = React.useState<string[]>([])
+  const [circuit, setCircuit] = React.useState<{
+    inputs: string[];
+    output: string;
+    gates: {
+      id: string;
+      type: "AND" | "OR" | "XOR" | "NAND" | "XNOR" | "NOR" | "NOT";
+      inputs: string[];
+    }[];
+    description: string;
+  }>({
+    inputs: [],
+    output: "",
+    gates: [],
+    description: ""
+  })
   const [finalResult, setFinalResult] = React.useState("")
   
   const pending = useRef(false)
@@ -26,12 +39,6 @@ export default function useLogic(){
   const [difficulty, setDifficulty] = React.useState("medium")
   const [answers, setAnswers] = React.useState<boolean[][]>([])
   const [score, setScore] = useState<number | undefined>()
-
-  const [externalInputs, setExternalInputs] = useState({
-    "A": false,
-    "B": false,
-    "C": false
-  });
 
   useEffect(() => {
     if (pending.current || !isOpen) return
@@ -48,7 +55,6 @@ export default function useLogic(){
       // TODO: set circuit
       function setPattern(inputs: string[], depth: number): boolean[][]{
         if(depth === inputs.length) return [[]]
-        const gate = inputs[depth]
         const nextGates = setPattern(inputs, depth + 1)
         const response = []
         response.push(...nextGates.map((e) => [false, ...e]))
@@ -58,7 +64,7 @@ export default function useLogic(){
 
       const truthTable = setPattern(circuit.inputs, 0).map((e)=> [...e, false])
       setAnswers(truthTable)
-      setInput_values(circuit.inputs)
+      setCircuit(circuit)
       setFinalResult("")
 
     //   if(circuit && circuit.connectGates){
@@ -78,12 +84,15 @@ export default function useLogic(){
   useEffect(() => {
     if(!isOpen){
       setGameId("")
-      setGameId("")
       setQuestion("")
-      setPattern([])
       setAnswers([])
       setDescription("")
-      setInput_values([])
+      setCircuit({
+        inputs: [],
+        output: "",
+        gates: [],
+        description: ""
+      })
       setFinalResult("")
       setScore(undefined)
     }
@@ -103,13 +112,13 @@ export default function useLogic(){
 
     const truth_table = answers.map((e) => ({
       inputs: e.slice(0, e.length - 1).reduce((acc, value, index) => {
-        acc[input_values[index]] = value ? 1 : 0
+        acc[circuit.inputs[index]] = value ? 1 : 0
         return acc
       }, {} as {[key: string]: (0|1)}),
       output: e[e.length - 1] ? 1 : 0 as (0|1)
     }))
 
-    const {correct, score, expected_truth_table, explanation} = await GuessLogicWord({
+    const {correct, score, explanation} = await GuessLogicWord({
       game_id,
       truth_table
     })
@@ -198,7 +207,7 @@ export default function useLogic(){
           </Card>
         </div>
         <div>
-          <Card>
+          <Card className="max-h-96 overflow-y-scroll">
             <CardHeader>
               <CardTitle>
                 {finalResult ? "Explicacion" : "Circuito"}
@@ -210,13 +219,7 @@ export default function useLogic(){
               </CardDescription>
             </CardHeader>
             <div className="m-4 flex gap-2">
-              {pattern.map((e,i) => {
-                return <div key={i} className="rounded-sm bg-primary-400 p-4">
-                  <SimpleLogicGate 
-                type={e}               
-                />
-                </div>
-              })}
+              <Circuit {...circuit} />
             </div>
             <CardContent className="flex gap-4 flex-col">
               <Label>
@@ -226,7 +229,7 @@ export default function useLogic(){
                 
               <thead>
                 <tr>
-                  {input_values?.map((e,i) => {
+                  {circuit.inputs?.map((e,i) => {
                     return <th key={i}>
                       {e}
                     </th>
@@ -243,7 +246,7 @@ export default function useLogic(){
                       return <td key={index} align="center">
                         <div className="p-2 flex flex-row items-center justify-center gap-4">
                           <Switch 
-                            disabled={pending.current || index !== e.length - 1}
+                            disabled={pending.current || index !== e.length - 1 || !!finalResult}
                             checked={value} onCheckedChange={() => {
                               const newAnswers = answers
                               newAnswers[i][index] = !value

@@ -4,8 +4,17 @@ import { useState } from 'react';
 import { FiRefreshCw } from 'react-icons/fi';
 
 interface HangmanProps {
-  game: any;
-  onAction: (action: any) => void;
+  game: {
+    wrong_guesses?: number;
+    max_wrong_guesses?: number;
+    completed?: boolean;
+    won?: boolean;
+    display?: string;
+    hint?: string;
+    word?: string;
+    guessed_letters?: string[];
+  };
+  onAction: (action: unknown) => void;
 }
 
 export default function Hangman({ game, onAction }: HangmanProps) {

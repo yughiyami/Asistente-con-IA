@@ -62,7 +62,7 @@ export default function useHangManGame() {
     pending.current = true
     
     const fetchData = async () => {
-      const {correct, remaining_attempts, game_over, win, current_word, correct_word} = await GuessHangmanWord({game_id, guess: word})
+      const {remaining_attempts, game_over, win, current_word, correct_word} = await GuessHangmanWord({game_id, guess: word})
       setWord(current_word)
       setUsedWords((prev) => [...prev, word])
       setRemainingAttempts(remaining_attempts)
