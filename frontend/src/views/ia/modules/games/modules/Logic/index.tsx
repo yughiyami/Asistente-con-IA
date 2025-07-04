@@ -15,6 +15,7 @@ export default function useLogic(){
   
   const [game_id, setGameId] = React.useState<string>("")
   const [question, setQuestion] = React.useState<string>("")
+  const [description, setDescription] = React.useState<string>("")
 
   const [pattern, setPattern] = React.useState<("AND" | "XOR" | "NAND" | "XNOR" | "OR" | "NOR")[]>([])
   const [input_values, setInput_values] = React.useState<string[]>([])
@@ -43,6 +44,7 @@ export default function useLogic(){
 
       setGameId(game_id)
       setQuestion(question)
+      setDescription(circuit.description)
       // TODO: set circuit
       function setPattern(inputs: string[], depth: number): boolean[][]{
         if(depth === inputs.length) return [[]]
@@ -79,7 +81,10 @@ export default function useLogic(){
       setGameId("")
       setQuestion("")
       setPattern([])
+      setAnswers([])
+      setDescription("")
       setInput_values([])
+      setFinalResult("")
       setScore(undefined)
     }
   }, [isOpen])
@@ -110,7 +115,8 @@ export default function useLogic(){
     })
 
     setScore(score)
-
+    setFinalResult(correct ? "MUY BIEN !!!" : "Tienes trabajo pendiente !!!")
+    setDescription(explanation)
     // const {correct, explanation: explication, correct_solution} = await GuessAssemblyWord({
     //   game_id,
     //   explanation: response.current?.value ?? ""
@@ -185,7 +191,7 @@ export default function useLogic(){
                 <div
                   className="max-h-32 overflow-y-scroll"
                 >
-                  {score}
+                  {score ? `Puntaje ${score}%` : ""}
                 </div>
               </CardDescription>
             </CardHeader>
@@ -195,11 +201,15 @@ export default function useLogic(){
           <Card>
             <CardHeader>
               <CardTitle>
-                Circuito
+                {finalResult ? "Explicacion" : "Circuito"}
               </CardTitle>
+              <CardDescription className="max-h-32 overflow-y-scroll">
+                <ReactMarkdown>
+                {description}
+                </ReactMarkdown>
+              </CardDescription>
             </CardHeader>
             <div className="m-4 flex gap-2">
-
               {pattern.map((e,i) => {
                 return <div key={i} className="rounded-sm bg-primary-400 p-4">
                   <SimpleLogicGate 
@@ -252,7 +262,7 @@ export default function useLogic(){
             </CardContent>
             <CardFooter>
                 <Button onClick={verify}
-                  disabled={pending.current }
+                  disabled={pending.current || !!finalResult }
                 >
                   Enviar ✔
                 </Button>
