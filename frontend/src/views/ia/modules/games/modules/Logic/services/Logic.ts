@@ -2,21 +2,25 @@ import api from "@/views/ia/service/api";
 
 interface LogicConfig {
   difficulty: string;
-  topic: string;
+  // topic: string;
 }
 
+interface Circuit {
+  inputs: string[];
+  output: string;
+  gates: {
+    id: string;
+    type: "AND" | "OR" | "XOR" | "NOT";
+    inputs: string[];
+  }[];
+  description: string;
+}
 interface LogicGame {
   game_id: string;
-  difficulty: string;
-  pattern: ("AND" | "OR" | "XOR")[];
+  circuit: Circuit;
   question: string;
-  input_values: (1 | 0)[]
-  expected_output: {
-    case1: (1|0)
-    case2: (1|0)
-    pattern: (1|0)[]
-  },
-  complexity_type: "multiple_cases"
+  num_inputs: number;
+  
 }
 
 export async function CreateLogicGame({... props} : LogicConfig) : Promise<LogicGame>{
@@ -33,26 +37,31 @@ export async function CreateLogicGame({... props} : LogicConfig) : Promise<Logic
 
 interface GuessLogicWordResponse {
   correct: boolean,
-  correct_answer: (0|1)
-  partial_score: number
+  score: number,
+  expected_truth_table: {
+    inputs: {
+      [key:string]: (0|1)
+    },
+    output: (0|1)
+  }
   explanation: string
-  complexity_feedback: string
 }
 
 interface GuessLogicWordRequest {
   game_id:string;
-  answer: {
-    case1: (0|1)
-    case2: (0|1)
-    pattern: (0|1)[]
-  };
+  truth_table: {
+    inputs: {
+      [key:string]: (0|1)
+    },
+    output: (0|1)
+  }[];
 }
 
-export async function GuessLogicWord({game_id, answer}: GuessLogicWordRequest): Promise<GuessLogicWordResponse> {
+export async function GuessLogicWord({game_id, truth_table}: GuessLogicWordRequest): Promise<GuessLogicWordResponse> {
   try {
     const {data} = await api.post("/games/logic/answer", {
       game_id,
-      answer
+      truth_table
     })
     return data
   } catch (error) {

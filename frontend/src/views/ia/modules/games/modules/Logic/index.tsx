@@ -1,10 +1,10 @@
 "use client"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from 'react-markdown';
 import { Button } from "@/components/ui/button";
-import { CreateLogicGame } from "./services/Logic";
+import { CreateLogicGame, GuessLogicWord } from "./services/Logic";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SimpleLogicGate } from "./components/Circuit";
@@ -17,14 +17,14 @@ export default function useLogic(){
   const [question, setQuestion] = React.useState<string>("")
 
   const [pattern, setPattern] = React.useState<("AND" | "XOR" | "NAND" | "XNOR" | "OR" | "NOR")[]>([])
-  const [input_values, setInput_values] = React.useState<((0|1)[][])>()
+  const [input_values, setInput_values] = React.useState<string[]>([])
   const [finalResult, setFinalResult] = React.useState("")
   
   const pending = useRef(false)
 
   const [difficulty, setDifficulty] = React.useState("medium")
-
-  const [answers, setAnswers] = React.useState<boolean[]>([])
+  const [answers, setAnswers] = React.useState<boolean[][]>([])
+  const [score, setScore] = useState<number | undefined>()
 
   const [externalInputs, setExternalInputs] = useState({
     "A": false,
@@ -37,14 +37,26 @@ export default function useLogic(){
     pending.current = true
 
     const fetchData = async () => {
-      const {game_id, question, input_values, pattern} = await CreateLogicGame({
+      const {game_id, question, circuit} = await CreateLogicGame({
         difficulty
       })
 
       setGameId(game_id)
       setQuestion(question)
-      setPattern(pattern)
-      setInput_values(input_values)
+      // TODO: set circuit
+      function setPattern(inputs: string[], depth: number): boolean[][]{
+        if(depth === inputs.length) return [[]]
+        const gate = inputs[depth]
+        const nextGates = setPattern(inputs, depth + 1)
+        const response = []
+        response.push(...nextGates.map((e) => [false, ...e]))
+        response.push(...nextGates.map((e) => [true, ...e]))
+        return response
+      }
+
+      const truthTable = setPattern(circuit.inputs, 0).map((e)=> [...e, false])
+      setAnswers(truthTable)
+      setInput_values(circuit.inputs)
       setFinalResult("")
 
     //   if(circuit && circuit.connectGates){
@@ -56,6 +68,7 @@ export default function useLogic(){
     
       pending.current = false
     }
+
     fetchData()
     
   }, [isOpen, difficulty])
@@ -67,6 +80,7 @@ export default function useLogic(){
       setQuestion("")
       setPattern([])
       setInput_values([])
+      setScore(undefined)
     }
   }, [isOpen])
 
@@ -80,9 +94,22 @@ export default function useLogic(){
 
   async function verify(){
     if(pending.current) return
-
-    
     pending.current = true
+
+    const truth_table = answers.map((e) => ({
+      inputs: e.slice(0, e.length - 1).reduce((acc, value, index) => {
+        acc[input_values[index]] = value ? 1 : 0
+        return acc
+      }, {} as {[key: string]: (0|1)}),
+      output: e[e.length - 1] ? 1 : 0 as (0|1)
+    }))
+
+    const {correct, score, expected_truth_table, explanation} = await GuessLogicWord({
+      game_id,
+      truth_table
+    })
+
+    setScore(score)
 
     // const {correct, explanation: explication, correct_solution} = await GuessAssemblyWord({
     //   game_id,
@@ -129,6 +156,7 @@ export default function useLogic(){
     //   setAttemps(updatedAttemps)
     // }
 
+    pending.current = false
   }
 
 
@@ -157,9 +185,7 @@ export default function useLogic(){
                 <div
                   className="max-h-32 overflow-y-scroll"
                 >
-                  <ReactMarkdown 
-                    >
-                  </ReactMarkdown>
+                  {score}
                 </div>
               </CardDescription>
             </CardHeader>
@@ -190,9 +216,9 @@ export default function useLogic(){
                 
               <thead>
                 <tr>
-                  {input_values?.[0]?.map((e,i) => {
+                  {input_values?.map((e,i) => {
                     return <th key={i}>
-                      Entrada {i + 1}
+                      {e}
                     </th>
                   })}
                   <th>
@@ -201,20 +227,24 @@ export default function useLogic(){
                 </tr>
               </thead>
               <tbody>
-                {input_values?.map((e,i) => {
+                {answers?.map((e,i) => {
                   return <tr key={i}>
                     {e.map((value, index) => {
                       return <td key={index} align="center">
-                        {value}
+                        <div className="p-2 flex flex-row items-center justify-center gap-4">
+                          <Switch 
+                            disabled={pending.current || index !== e.length - 1}
+                            checked={value} onCheckedChange={() => {
+                              const newAnswers = answers
+                              newAnswers[i][index] = !value
+                              setAnswers([...newAnswers])
+                            }}/>
+                          <Label className="text-white">
+                            {value ? "1" : "0"}
+                          </Label>
+                        </div>
                       </td>
                     })}
-                    <td align="center">
-                      <Switch checked={answers[i]} onCheckedChange={() => {
-                        const newAnswers = answers
-                        newAnswers[i] = !answers[i]
-                        setAnswers(newAnswers)
-                      }}/>
-                    </td>
                   </tr>
                 })}
               </tbody>

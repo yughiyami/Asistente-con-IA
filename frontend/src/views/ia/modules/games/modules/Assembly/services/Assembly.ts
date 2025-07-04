@@ -27,8 +27,9 @@ export async function CreateAssemblyGame({... props} : AssemblyConfig) : Promise
 
 interface GuessAssemblyResponse {
   correct: boolean
-  explanation: string
-  correct_solution: string
+  correct_explanation: string
+  feedback: string
+  score: number
 }
 
 interface GuessAssemblyWordRequest {

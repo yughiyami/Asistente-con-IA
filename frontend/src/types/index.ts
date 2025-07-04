@@ -16,12 +16,11 @@ export interface User {
   }
   
   export type ImageInfo = 
-  // {
-  //   url: string;
-  //   alt_text: string;
-  //   source?: string;
-  // }
-  string
+  {
+    url: string;
+    title: string;
+    source?: string;
+  }
   
   export interface SpecialContent {
     type: 'exam' | 'game' | 'diagram' | 'chat';  // Add 'chat' as a valid type

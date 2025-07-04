@@ -78,15 +78,15 @@ export default function useAssembly(){
     }
     pending.current = true
 
-    const {correct, explanation: explication, correct_solution} = await GuessAssemblyWord({
+    const {correct, correct_explanation: explication, score, feedback} = await GuessAssemblyWord({
       game_id,
       explanation: response.current?.value ?? ""
     })
-
-    setCode(correct_solution || code)
     setFinalResult(correct ? "MUY BIEN !!!" : "Tienes trabajo pendiente, Continua !!!")
-    setHint(correct ? "" : hint)
-    setExplanation(explication)
+    // setHint(correct ? "" : hint)
+    setHint(feedback)
+    // setExplanation(explication)
+    setExpected_behaviour(explication)
     pending.current = false
 
     // if(cursor < wordSize) return
@@ -177,14 +177,14 @@ export default function useAssembly(){
               </CardDescription>
             </CardHeader>
             <CardContent className="flex gap-2 flex-col">
-              <pre className="bg-gray-800 p-2 rounded-sm border-white border text-[0.65rem]">
+              <pre className="bg-gray-800 p-2 rounded-sm border-white border text-[0.65rem] max-h-52 overflow-y-scroll">
                 {code}
               </pre>
               <Textarea ref={response} className="text-xs"/>
             </CardContent>
             <CardFooter>
                 <Button onClick={verify}
-                  disabled={pending.current || finalResult ===  "MUY BIEN !!!" }
+                  disabled={pending.current || !!finalResult }
                 >
                   Enviar ✔
                 </Button>

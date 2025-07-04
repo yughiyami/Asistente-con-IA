@@ -39,6 +39,10 @@ export default function Game() {
 
   const { Component: Logic,
     open: openLogic,
+    props: {
+      difficulty: difficultyLogic,
+      setDifficulty: setDifficultyLogic,
+    }
   } = useLogic()
 
   
@@ -200,10 +204,14 @@ export default function Game() {
               <div className='p-2'>
                 <div className="flex flex-col gap-2">
                   <Label> Dificultad :{">"} </Label>
-                  <RadioGroup value={difficultyWordle} onValueChange={setDifficultyWordle}>
+                  <RadioGroup value={difficultyLogic} onValueChange={setDifficultyLogic}>
                     <Label>
                       <RadioGroupItem value="medium" />
                       Medio
+                    </Label>
+                    <Label>
+                      <RadioGroupItem value="hard" />
+                      Dificil
                     </Label>
                   </RadioGroup>
                 </div>

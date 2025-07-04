@@ -33,16 +33,20 @@ export default function MessageInput() {
     };
     
     // Añadir mensaje a la UI
-    addMessage(userMessage);
+    console.log("Logged exam")
+    // addMessage(userMessage);
     setLoading(true);
     
     try {
       // Enviar mensaje al backend
+      console.log("GG, go to exam")
       const exam = await generateExam({
         topic: input,
         difficulty: "medium",
         num_questions: 7
       });
+
+      console.log("Chore aquoere")
       
       // // Guardar ID de sesión si no existe
       // if (!sessionId && response.special_content?.session_id) {
@@ -61,9 +65,9 @@ export default function MessageInput() {
         //     data: response.special_content
         // } : undefined,
       };
-      
       // Añadir respuesta a la UI
-      addMessage(assistantMessage);
+      // addMessage(assistantMessage);
+      console.log("Exam", exam)
       setExam(exam)
       // toast.success('Examen insertado con éxito!')
       

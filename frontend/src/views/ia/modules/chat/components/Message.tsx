@@ -23,7 +23,7 @@ export default function Message({ message }: MessageProps) {
   const renderSpecialContent = () => {
     if (!message.specialContent) return null;
     
-    switch (message.specialContent.type) {
+    switch (message.specialContent?.type) {
       // case 'exam':
       //   return <ExamComponent data={message.specialContent.data} />;
       // case 'game':
@@ -91,13 +91,13 @@ export default function Message({ message }: MessageProps) {
                   <button 
                     onClick={() => {
                       console.log("aea")
-                      setImageExpanded(image)
+                      setImageExpanded(image?.url)
                     }} 
                     className="block w-full relative rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700"
                   >
                     <img 
-                      src={image} 
-                      alt={"Imagen de respuesta"} 
+                      src={image?.url} 
+                      alt={image?.title || 'Imagen'} 
                       width={200} 
                       height={150} 
                       className="w-full h-32 object-cover" 

@@ -4,9 +4,10 @@ import { examService } from "./api";
 export interface ExamQuestion {
   id: string;
   text: string;
-  alternatives: {
-    [key: string]: string | number | boolean;
-  }
+  // alternatives: {
+  //   [key: string]: string | number | boolean;
+  // }
+  options: { id: string, text: string }[];
   // question: string;
   // type: 'multiple-choice' | 'true-false';
   // options?: string[];
@@ -28,7 +29,7 @@ export async function makeExam({questions, ...props}: ExamAdapter) : Promise<Exa
       chosen_answer: null,
       question: question.text,
       type: 'multiple-choice',
-      options: Object.keys(question.alternatives).map((key) => ({ key, value: question.alternatives[key] })),
+      options: question.options.map((option) => ({ key: option.id, value: option.text })),
     }))
     // Aquí puedes agregar métodos y propiedades para interactuar con el examen
     // Por
@@ -39,10 +40,14 @@ interface generateExamProps {
   topic: string,
   difficulty?: "easy" | "medium" | "hard"
   num_questions: number
+  subtopics?: string[]
 }
 
 export async function generateExam({...props}: generateExamProps) {
-  const exam = await examService.generateExam(props)
+  console.log("Prepare fetch")
+  const exam = await examService.generateExam({ ...props,
+    subtopics: props.subtopics ?? []
+  })
   return makeExam(exam)
 }
 

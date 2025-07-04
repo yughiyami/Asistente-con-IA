@@ -35,6 +35,11 @@ export default function useHangManGame() {
     if (pending.current) return
     pending.current = true
     resetGame()
+    if (!isOpen) {
+      pending.current = false
+      return
+    }
+    
     const fetchData = async () => {
       const {hidden_word, clue, game_id, max_attempts, argument} = await CreateHangmanGame({
         difficulty, topic
