@@ -2,6 +2,7 @@ import React from 'react'
 import ModeSelector from './ModeSelector'
 import ThemeToggle from './ThemeToggle'
 import { FiCpu } from 'react-icons/fi'
+import { Switch } from '@/components/ui/switch'
 
 export default function Header() {
   return (
@@ -13,6 +14,10 @@ export default function Header() {
       </div>
       
       <div className="flex items-center space-x-4">
+        <div className='flex items-center space-x-2'>
+          <h2 className="text-md font-semibold">Extender modelo</h2>
+          <Switch />
+        </div>
         <ModeSelector />
         <ThemeToggle />
       </div>

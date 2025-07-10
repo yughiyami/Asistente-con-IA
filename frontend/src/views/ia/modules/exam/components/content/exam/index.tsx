@@ -24,6 +24,8 @@ export default function Exam() {
       { index >= 0 && exam ? 
         <QuestionCard
           question={exam?.questions[index]}
+          question_number={index + 1}
+          total_questions={exam?.questions.length}
         />
         :
         <ResultSummary/> 

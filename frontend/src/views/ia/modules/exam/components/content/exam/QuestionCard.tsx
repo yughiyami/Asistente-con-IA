@@ -11,9 +11,11 @@ import { useExamStore } from '@/store/exam';
 
 interface QuestionCardProps {
   question: ExamQuestion;
+  question_number?: number;
+  total_questions?: number;
 }
 
-export default function QuestionCard({ question }: QuestionCardProps) {
+export default function QuestionCard({ question, question_number, total_questions }: QuestionCardProps) {
   // const isMultipleChoice = question.question_type === 'multiple_choice';
   // const [textAnswer, setTextAnswer] = useState(
   //   typeof userAnswer === 'string' ? userAnswer : ''
@@ -74,21 +76,26 @@ export default function QuestionCard({ question }: QuestionCardProps) {
             ""
           }
       </DialogHeader>
-      <DialogFooter>
-        <Button type="button" 
-          disabled={!answer || !!question.chosen_answer}
-          onClick={handleAnswer}
-        >
-          <FiCheck />
-          OK
-        </Button>
-        <Button type="button" 
-          disabled={!question.chosen_answer}
-          onClick={nextQuestion}
-        >
-          <FiChevronRight />
-          Siguiente
-        </Button>
+      <DialogFooter >
+        <div className='flex flex-row items-center gap-4 w-full'>
+          <p className='flex-grow'>
+            {question_number} / {total_questions}
+          </p>
+          <Button type="button" 
+            disabled={!answer || !!question.chosen_answer}
+            onClick={handleAnswer}
+          >
+            <FiCheck />
+            OK
+          </Button>
+          <Button type="button" 
+            disabled={!question.chosen_answer}
+            onClick={nextQuestion}
+          >
+            <FiChevronRight />
+            Siguiente
+          </Button>
+        </div>
       </DialogFooter>
     </DialogContent>
     // <div className="question-card">

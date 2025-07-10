@@ -206,6 +206,10 @@ export default function Game() {
                   <Label> Dificultad :{">"} </Label>
                   <RadioGroup value={difficultyLogic} onValueChange={setDifficultyLogic}>
                     <Label>
+                      <RadioGroupItem value="easy" />
+                      Fácil
+                    </Label>
+                    <Label>
                       <RadioGroupItem value="medium" />
                       Medio
                     </Label>
