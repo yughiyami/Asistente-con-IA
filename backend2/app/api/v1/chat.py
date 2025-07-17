@@ -3,12 +3,13 @@ Router para endpoints de chat con IA.
 Maneja conversaciones y búsqueda de documentos.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, File, HTTPException, Depends, UploadFile
 from typing import List , Dict
 import logging
+from app.schemas.base import ProcessingMode
 
 from app.schemas.chat import (
-    ChatRequest, ChatResponse, Document
+    ChatRequest, ChatResponse, Document ,ProcessingModeRequest
 )
 from app.services.gemini_service import GeminiService
 from app.services.serper_service import SerperService
@@ -64,11 +65,13 @@ async def generate_chat_response(
             context = await documents.get_document_content(request.context_ids)
             
             # Crear referencias para los documentos usados
+            # Crear referencias para los documentos usados
             for doc_id in request.context_ids:
-                if doc_id in documents.sample_documents:
-                    doc_info = documents.sample_documents[doc_id]
+                # Buscar en los metadatos de documentos
+                doc_metadata = documents.documents_metadata.get(doc_id)
+                if doc_metadata:
                     references.append({
-                        "title": doc_info["title"],
+                        "title": doc_metadata.get("title", doc_id),
                         "source": f"Documento interno: {doc_id}",
                         "url": None,
                         "page": None
@@ -236,3 +239,101 @@ def _get_default_references(query: str) -> List[Dict]:
     
     # Retornar referencias por defecto
     return references_db["default"]
+
+
+@router.post("/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    documents: DocumentService = Depends(get_document_service)
+):
+    """
+    Sube un nuevo documento PDF a la base de conocimiento.
+    
+    - Máximo 30MB por archivo
+    - Máximo 1000 páginas por PDF
+    - Solo archivos PDF
+    """
+    try:
+        metadata = await documents.upload_document(file)
+        return {
+            "status": "success",
+            "message": "Documento subido correctamente",
+            "document": metadata
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error subiendo documento: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al subir el documento: {str(e)}"
+        )
+
+@router.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: str,
+    documents: DocumentService = Depends(get_document_service)
+):
+    """Elimina un documento de la base de conocimiento"""
+    success = await documents.delete_document(document_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Documento no encontrado"
+        )
+    
+    return {
+        "status": "success",
+        "message": "Documento eliminado correctamente"
+    }
+
+@router.post("/mode")
+async def set_processing_mode(
+    request: ProcessingModeRequest,
+    gemini: GeminiService = Depends(get_gemini_service)
+):
+    """
+    Cambia el modo de procesamiento entre:
+    - knowledge_base: Solo usa documentos PDF cargados
+    - free: Usa el conocimiento general del modelo
+    """
+    gemini.set_processing_mode(request.mode)
+    
+    return {
+        "status": "success",
+        "message": f"Modo cambiado a: {request.mode.value}",
+        "mode": request.mode.value
+    }
+
+@router.get("/mode")
+async def get_processing_mode(
+    gemini: GeminiService = Depends(get_gemini_service)
+):
+    """Obtiene el modo de procesamiento actual"""
+    mode = gemini.get_processing_mode()
+    
+    return {
+        "mode": mode.value,
+        "description": {
+            ProcessingMode.KNOWLEDGE_BASE: "Solo usa documentos PDF cargados como base de conocimiento",
+            ProcessingMode.FREE: "Usa el conocimiento general del modelo de IA"
+        }[mode]
+    }
+
+@router.get("/documents/search")
+async def search_documents(
+    query: str,
+    documents: DocumentService = Depends(get_document_service)
+):
+    """Busca documentos por query"""
+    results = await documents.search_documents(query)
+    
+    return {
+        "query": query,
+        "results": results,
+        "count": len(results)
+    }

@@ -21,7 +21,11 @@ class ResponseStatus(str, Enum):
     ERROR = "error"
     WARNING = "warning"
 
-
+class ProcessingMode(str, Enum):
+    """Modos de procesamiento disponibles"""
+    KNOWLEDGE_BASE = "knowledge_base"  # Solo usa PDFs cargados
+    FREE = "free"  # Usa conocimiento general del modelo
+    
 class BaseResponse(BaseModel):
     """Respuesta base para todas las APIs"""
     status: ResponseStatus = ResponseStatus.SUCCESS

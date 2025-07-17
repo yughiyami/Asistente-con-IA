@@ -13,11 +13,12 @@ from app.schemas.exam import (
     ExamValidationResponse, ExamQuestion, QuestionOption,
     QuestionResult
 )
-from app.schemas.base import DifficultyLevel
+from app.schemas.base import DifficultyLevel, ProcessingMode
 from app.services.gemini_service import GeminiService
 from app.services.redis_service import RedisService
-from app.core.dependencies import get_gemini_service, get_redis_service
+from app.core.dependencies import get_document_service, get_gemini_service, get_redis_service
 from app.core.config import settings
+from app.services.document_service import DocumentService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/exam", tags=["exam"])
@@ -27,7 +28,8 @@ router = APIRouter(prefix="/api/v1/exam", tags=["exam"])
 async def generate_exam(
     request: ExamRequest,
     gemini: GeminiService = Depends(get_gemini_service),
-    redis: RedisService = Depends(get_redis_service)
+    redis: RedisService = Depends(get_redis_service),
+    documents: DocumentService = Depends(get_document_service)
 ) -> ExamResponse:
     """
     Genera un examen personalizado de arquitectura de computadoras.
@@ -39,13 +41,29 @@ async def generate_exam(
     try:
         # Generar ID único para el examen
         exam_id = str(uuid.uuid4())
+                
+        # Obtener contexto si estamos en modo knowledge_base
+        context = None
+        mode = gemini.get_processing_mode()
         
+        if mode == ProcessingMode.KNOWLEDGE_BASE:
+            # Obtener todos los documentos disponibles
+            all_docs = await documents.list_documents()
+            doc_ids = [doc["id"] for doc in all_docs]
+            
+            if doc_ids:
+                context = await documents.get_document_content(doc_ids)
+                logger.info(f"Generando examen en modo KNOWLEDGE_BASE con {len(doc_ids)} documentos")
+            else:
+                logger.warning("Modo KNOWLEDGE_BASE pero sin documentos disponibles")
+       
         # Generar preguntas con Gemini
         questions_data = await gemini.generate_exam_questions(
             topic=request.topic,
             difficulty=request.difficulty.value,
             num_questions=request.num_questions,
-            subtopics=request.subtopics
+            subtopics=request.subtopics,
+            context=context
         )
         
         # Procesar preguntas al formato del esquema

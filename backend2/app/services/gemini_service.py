@@ -9,6 +9,8 @@ import json
 import logging
 import re
 from app.core.config import settings
+from app.schemas.base import ProcessingMode
+from vertexai.generative_models import GenerativeModel, Part
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,75 @@ class GeminiService:
         """Inicializa el servicio con la API key"""
         genai.configure(api_key=settings.gemini_api_key)
         self.model = genai.GenerativeModel('gemini-2.5-flash')
+        self.processing_mode = ProcessingMode.FREE 
+        self.vision_model = None 
+        try:
+            import vertexai
+            logger.info("Inicializando Gemini Vision...")
+            vertexai.init(project=settings.gcp_project_id, location="us-central1")
+            self.vision_model = GenerativeModel("gemini-2.5-flash")
+            logger.info("Gemini Vision inicializado correctamente.")
+        except Exception as e:
+            self.vision_model = None
+            logger.warning(f"Gemini Vision no disponible. Usando modo texto solo.::::: {str(e)}")
 
+
+
+    # Agrega estos métodos
+    def set_processing_mode(self, mode: ProcessingMode):
+        """Cambia el modo de procesamiento"""
+        self.processing_mode = mode
+        logger.info(f"Modo de procesamiento cambiado a: {mode}")
+
+    def get_processing_mode(self) -> ProcessingMode:
+        """Obtiene el modo de procesamiento actual"""
+        return self.processing_mode
+
+    async def generate_chat_response_with_pdfs(
+        self, 
+        query: str, 
+        pdf_paths: List[Dict],
+        history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        """
+        Genera respuesta usando PDFs como base de conocimiento.
+        Usa Gemini 1.5 Flash que soporta PDFs nativamente.
+        """
+        if not self.vision_model:
+            # Fallback a modo texto si no hay vision model
+            return await self.generate_chat_response(query, None, history)
+        
+        # Construir partes del contenido
+        contents = []
+        
+        # Agregar PDFs
+        for pdf_info in pdf_paths:
+            pdf_part = Part.from_uri(
+                uri=f"file://{pdf_info['path']}",
+                mime_type="application/pdf"
+            )
+            contents.append(pdf_part)
+        
+        # Agregar prompt
+        prompt = f"""Eres un profesor experto en arquitectura de computadoras.
+        IMPORTANTE: Debes responder ÚNICAMENTE basándote en la información contenida en los documentos PDF proporcionados.
+        Si la información solicitada no está en los documentos, debes indicarlo claramente.
+        NO uses conocimiento externo a los documentos.
+        
+        Pregunta del estudiante: {query}
+        
+        Responde de manera educativa y clara, citando las secciones relevantes de los documentos cuando sea posible.
+        """
+        
+        contents.append(prompt)
+        
+        try:
+            response = self.vision_model.generate_content(contents)
+            return response.text
+        except Exception as e:
+            logger.error(f"Error con Gemini Vision: {str(e)}")
+            # Fallback a extraer texto
+            return "Lo siento, hubo un error procesando los documentos PDF. Por favor, intenta de nuevo."
     def _clean_json_response(self, response_text: str, expected_structure: str = "questions") -> Dict:
         """ Limpia y corrige respuestas JSON mal formateadas de Gemini  Args:"""
         # Intentar parsear directamente
@@ -98,17 +168,16 @@ class GeminiService:
     ) -> str:
         """
         Genera una respuesta educativa para consultas sobre arquitectura de computadoras.
-        
-        Args:
-            query: Pregunta del usuario
-            context: Contexto adicional de PDFs
-            history: Historial de conversación
-            
-        Returns:
-            Respuesta generada por Gemini
         """
-        # Construir el prompt
-        prompt = self._build_chat_prompt(query, context, history)
+        # Si está en modo knowledge_base y no hay contexto, advertir
+        if self.processing_mode == ProcessingMode.KNOWLEDGE_BASE and not context:
+            return "No hay documentos cargados en la base de conocimiento. Por favor, carga documentos PDF o cambia al modo libre."
+        
+        # Construir el prompt según el modo
+        if self.processing_mode == ProcessingMode.KNOWLEDGE_BASE:
+            prompt = self._build_knowledge_base_prompt(query, context, history)
+        else:
+            prompt = self._build_chat_prompt(query, context, history)
         
         try:
             response = self.model.generate_content(prompt)
@@ -116,13 +185,43 @@ class GeminiService:
         except Exception as e:
             logger.error(f"Error generando respuesta con Gemini: {str(e)}")
             raise
+
+    def _build_knowledge_base_prompt(
+        self, 
+        query: str, 
+        context: str,
+        history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        """Construye prompt para modo base de conocimiento"""
+        prompt = f"""Eres un profesor experto en arquitectura de computadoras.
+        MODO: BASE DE CONOCIMIENTO
+        
+        IMPORTANTE: Debes responder ÚNICAMENTE basándote en la siguiente información:
+        
+        === CONTENIDO DE DOCUMENTOS ===
+        {context}
+        === FIN DE DOCUMENTOS ===
+        
+        Reglas estrictas:
+        1. Solo usa información que esté explícitamente en los documentos anteriores
+        2. Si la información no está en los documentos, di: "Esta información no se encuentra en los documentos disponibles"
+        3. NO inventes información ni uses conocimiento externo
+        4. Cita las secciones relevantes cuando respondas
+        
+        Historial de conversación:
+        {self._format_history(history) if history else "Sin historial"}
+        
+        Pregunta del estudiante: {query}
+        """
+        return prompt
     
     async def generate_exam_questions(
         self, 
         topic: str, 
         difficulty: str,
         num_questions: int,
-        subtopics: Optional[List[str]] = None
+        subtopics: Optional[List[str]] = None,
+        context: Optional[str] = None
     ) -> List[Dict]:
         """
         Genera preguntas de opción múltiple para un examen.
@@ -130,13 +229,25 @@ class GeminiService:
         Returns:
             Lista de preguntas con formato específico
         """
-        prompt = self._build_exam_prompt(topic, difficulty, num_questions, subtopics)
+        logger.info(f"Generando examen - Modo: {self.processing_mode.value}")
+        logger.info(f"Contexto disponible: {'SÍ' if context else 'NO'} ({len(context) if context else 0} caracteres)")
+        
+        if self.processing_mode == ProcessingMode.KNOWLEDGE_BASE:
+            if not context:
+                logger.warning("KNOWLEDGE_BASE sin contexto - usando preguntas genéricas")
+                return self._generate_fallback_questions_for_topic(topic, difficulty, num_questions)
+            
+            logger.info("Generando preguntas basadas en documentos PDF")
+            prompt = self._build_exam_prompt_knowledge_base(topic, difficulty, num_questions, subtopics, context)
+        else:
+            logger.info("Generando preguntas en modo LIBRE")
+            prompt = self._build_exam_prompt(topic, difficulty, num_questions, subtopics)
         
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 response = self.model.generate_content(prompt)
-                
+                print(f"Respuesta recibida: {response.text[:300]}...")  # Mostrar solo los primeros 100 caracteres
                 # Usar la función de limpieza
                 questions_data = self._clean_json_response(response.text, "questions")
                 
@@ -166,6 +277,55 @@ class GeminiService:
         # Si todos los intentos fallan, generar preguntas de respaldo
         logger.error("Todos los intentos de generar preguntas fallaron. Usando preguntas de respaldo.")
         return self._generate_fallback_questions_for_topic(topic, difficulty, num_questions)
+
+    def _build_exam_prompt_knowledge_base(
+        self, 
+        topic: str, 
+        difficulty: str,
+        num_questions: int,
+        subtopics: Optional[List[str]],
+        context: str
+    ) -> str:
+        """Construye prompt para examen basado en documentos"""
+        subtopics_str = ", ".join(subtopics) if subtopics else "todos los aspectos relevantes"
+        
+        prompt = f"""Genera {num_questions} preguntas de opción múltiple sobre {topic}.
+        
+        MODO: BASE DE CONOCIMIENTO
+        Debes crear las preguntas ÚNICAMENTE basándote en esta información:
+        
+        === CONTENIDO DE DOCUMENTOS ===
+        {context[:5000]}  # Limitar para no exceder límites del modelo
+        === FIN DE DOCUMENTOS ===
+        
+        Nivel de dificultad: {difficulty}
+        Subtemas a cubrir: {subtopics_str}
+        
+        IMPORTANTE: 
+        - Las preguntas deben estar basadas SOLO en la información de los documentos
+        - No inventes información que no esté en los documentos
+        - Responde con el JSON en el formato especificado
+        
+        Formato JSON requerido:
+        {{
+            "questions": [
+                {{
+                    "text": "texto de la pregunta",
+                    "options": [
+                        {{"id": "a", "text": "opción A"}},
+                        {{"id": "b", "text": "opción B"}},
+                        {{"id": "c", "text": "opción C"}},
+                        {{"id": "d", "text": "opción D"}}
+                    ],
+                    "correct_answer": "a",
+                    "explanation": "explicación basada en los documentos",
+                    "topic": "subtema específico",
+                    "difficulty": "{difficulty}"
+                }}
+            ]
+        }}
+        """
+        return prompt
 
     def _validate_question_structure(self, question: Dict) -> bool:
         """Valida que una pregunta tenga la estructura correcta"""
@@ -332,7 +492,7 @@ class GeminiService:
         Pregunta del estudiante: {query}
         
         Proporciona una respuesta completa que:
-        1. Sea técnicamente precisa
+        1. Sea técnicamente precisa y consisa  maximo 200 palabras
         2. Use ejemplos cuando sea apropiado
         3. Incluya referencias a conceptos fundamentales
         4. Sea accesible para estudiantes universitarios

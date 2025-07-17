@@ -87,7 +87,10 @@ class SerperService:
         queries = [
             f"{concept} block diagram",
             f"{concept} architecture diagram",
-            f"{concept} circuit schematic"
+            f"{concept} flowchart",
+            f"{concept} data flow diagram",
+            f"{concept} system architecture diagram",
+            f"{concept} pipeline diagram",
         ]
         
         all_images = []

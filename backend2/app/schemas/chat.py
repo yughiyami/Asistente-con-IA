@@ -5,9 +5,11 @@ Esquemas para el módulo de chat con Gemini.
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from datetime import datetime
-from .base import ImageData, Reference
+from .base import ImageData, ProcessingMode, Reference
 
-
+class ProcessingModeRequest(BaseModel):
+    """Solicitud para cambiar el modo de procesamiento"""
+    mode: ProcessingMode = Field(..., description="Modo de procesamiento: knowledge_base o free")
 
 class ChatRequest(BaseModel):
     """Solicitud de chat"""

@@ -3,7 +3,7 @@ Configuración central de la aplicación.
 Maneja variables de entorno y configuraciones globales.
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 from functools import lru_cache
 
 class Settings(BaseSettings):
@@ -20,17 +20,18 @@ class Settings(BaseSettings):
     # API Keys
     gemini_api_key: str
     serper_api_key: str
-    
+    # Google Cloud
+    gcp_project_id: Optional[str] = None
     # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
     
     # Server
-    host: str = "0.0.0.0"
+    host: str = "10.7.124.223"
     port: int = 8000
     # CORS
-    allowed_origins: str = "http://localhost:3000,http://localhost:8080"
+    allowed_origins: str = "*,http://localhost:3100,http://10.7.124.223:3100,http://10.7.124.223:3000,http://localhost:8080"
 
     # Session
     session_expire_minutes: int = 60
