@@ -12,7 +12,8 @@ export default function MessageInput() {
     setSessionId, 
     setLoading, 
     addMessage, 
-    predefinedPrompts
+    predefinedPrompts,
+    Modelmode
   } = useAppStore();
   
   async function sendMessage(input: string) {
@@ -67,6 +68,7 @@ export default function MessageInput() {
   const filteredPrompts = predefinedPrompts.filter(prompt => prompt.mode === mode);
 
   return (
+    <>
     <PromptForm 
       filteredPrompts={filteredPrompts}
       placeholder={
@@ -76,6 +78,10 @@ export default function MessageInput() {
         undefined
       }
       onSubmit={sendMessage}
-    />
+      />
+      <small>
+        Usando el modelo {Modelmode ? 'normal' : 'extendido'}.
+      </small>
+    </>
   );
 }

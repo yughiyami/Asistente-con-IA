@@ -1,4 +1,5 @@
 import { Textarea } from '@/components/ui/textarea'
+import { useAppStore } from '@/store/store'
 import React from 'react'
 import { FiSend, FiX } from 'react-icons/fi'
 import { Toaster } from 'sonner'

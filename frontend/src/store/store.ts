@@ -8,6 +8,7 @@ interface AppState {
   sessionId: string | null;
   loading: boolean;
   mode: ChatMode;
+  Modelmode: boolean;
   theme: ThemeMode;
   predefinedPrompts: PredefinedPrompt[];
   
@@ -19,6 +20,7 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   setMode: (mode: ChatMode) => void;
   setTheme: (theme: ThemeMode) => void;
+  setModelMode: (mode: boolean) => void;
 }
 
 // Crear store
@@ -26,6 +28,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       messages: [],
+      Modelmode: true,
       sessionId: null,
       loading: false,
       mode: 'chat',
@@ -62,6 +65,7 @@ export const useAppStore = create<AppState>()(
       setLoading: (loading) => set({ loading }),
       setMode: (mode) => set({ mode }),
       setTheme: (theme) => set({ theme }),
+      setModelMode: (mode) => set({ Modelmode: mode }),
     }),
     {
       name: 'computer-arch-assistant',
