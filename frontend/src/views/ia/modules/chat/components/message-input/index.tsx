@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/store/store';
-import { chatService } from '../../services/api';
+import { sendMessage as SM } from '../../services/api';
 import PromptForm from '@/views/ia/components/forms';
 
 export default function MessageInput() {
@@ -9,7 +9,7 @@ export default function MessageInput() {
   const { 
     mode, 
     sessionId, 
-    setSessionId, 
+    // setSessionId, 
     setLoading, 
     addMessage, 
     predefinedPrompts,
@@ -31,16 +31,16 @@ export default function MessageInput() {
     
     try {
       // Enviar mensaje al backend
-      const response = await chatService.sendMessage({
+      const response = await SM({
         message: input,
         session_id: sessionId || undefined,
         mode: mode,
       });
       
       // Guardar ID de sesión si no existe
-      if (!sessionId && response.special_content?.session_id) {
-        setSessionId(response.special_content.session_id);
-      }
+      // if (!sessionId && response.special_content?.session_id) {
+      //   setSessionId(response.special_content.session_id);
+      // }
       
       // Crear mensaje del asistente
       const assistantMessage = {

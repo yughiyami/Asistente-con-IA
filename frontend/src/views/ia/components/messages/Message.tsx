@@ -7,8 +7,8 @@ import { Message as MessageType } from '@/types';
 import { FiUser, FiCpu, FiImage } from 'react-icons/fi';
 
 // Componentes especializados
-import ExamComponent from '@/views/ia/modules/exam/components/content/exam/ExamComponent';
-import GameComponent from '@/views/ia/modules/games/modules/GameComponent';
+// import ExamComponent from '@/views/ia/modules/exam/components/content/exam/ExamComponent';
+// import GameComponent from '@/views/ia/modules/games/modules/GameComponent';
 
 interface MessageProps {
   message: MessageType;
@@ -24,29 +24,29 @@ export default function Message({ message }: MessageProps) {
     if (!message.specialContent) return null;
     
     switch (message.specialContent.type) {
-      case 'exam':
-        return <ExamComponent data={message.specialContent.data} />;
-      case 'game':
-        return <GameComponent data={message.specialContent.data} />;
-      case 'diagram':
-        // Un simple contenedor para diagramas
-        return (
-          <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md overflow-hidden">
-            <div className="font-medium mb-1">Diagrama</div>
-            <div className="text-sm">{message.specialContent.data.description}</div>
-            {message.specialContent.data.url && (
-              <div className="mt-2">
-                <Image 
-                  src={message.specialContent.data.url} 
-                  alt={message.specialContent.data.description || 'Diagrama'} 
-                  width={500} 
-                  height={300} 
-                  className="rounded-md object-contain" 
-                />
-              </div>
-            )}
-          </div>
-        );
+      // case 'exam':
+      //   return <ExamComponent data={message.specialContent.data} />;
+      // case 'game':
+      //   return <GameComponent data={message.specialContent.data} />;
+      // case 'diagram':
+      //   // Un simple contenedor para diagramas
+      //   return (
+      //     <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md overflow-hidden">
+      //       <div className="font-medium mb-1">Diagrama</div>
+      //       <div className="text-sm">{message.specialContent.data.description}</div>
+      //       {message.specialContent.data.url && (
+      //         <div className="mt-2">
+      //           <Image 
+      //             src={message.specialContent.data.url} 
+      //             alt={message.specialContent.data.description || 'Diagrama'} 
+      //             width={500} 
+      //             height={300} 
+      //             className="rounded-md object-contain" 
+      //           />
+      //         </div>
+      //       )}
+      //     </div>
+      //   );
       default:
         return null;
     }
@@ -94,7 +94,7 @@ export default function Message({ message }: MessageProps) {
                   >
                     <Image 
                       src={image.url} 
-                      alt={image.alt_text} 
+                      alt={image.title || 'Imagen'} 
                       width={200} 
                       height={150} 
                       className="w-full h-32 object-cover" 
@@ -104,7 +104,7 @@ export default function Message({ message }: MessageProps) {
                     </div>
                   </button>
                   <div className="text-xs mt-1 truncate text-gray-600 dark:text-gray-400">
-                    {image.alt_text}
+                    {image.title || 'Imagen sin título'}
                   </div>
                 </div>
               ))}

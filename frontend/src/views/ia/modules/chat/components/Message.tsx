@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+// import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import { Message as MessageType } from '@/types';
 import { FiUser, FiCpu, FiImage } from 'react-icons/fi';
@@ -28,25 +28,25 @@ export default function Message({ message }: MessageProps) {
       //   return <ExamComponent data={message.specialContent.data} />;
       // case 'game':
       //   return <GameComponent data={message.specialContent.data} />;
-      case 'diagram':
-        // Un simple contenedor para diagramas
-        return (
-          <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md overflow-hidden">
-            <div className="font-medium mb-1">Diagrama</div>
-            <div className="text-sm">{message.specialContent.data.description}</div>
-            {message.specialContent.data.url && (
-              <div className="mt-2">
-                <Image 
-                  src={message.specialContent.data.url} 
-                  alt={message.specialContent.data.description || 'Diagrama'} 
-                  width={500} 
-                  height={300} 
-                  className="rounded-md object-contain" 
-                />
-              </div>
-            )}
-          </div>
-        );
+      // case 'diagram':
+      //   // Un simple contenedor para diagramas
+      //   return (
+      //     <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md overflow-hidden">
+      //       <div className="font-medium mb-1">Diagrama</div>
+      //       <div className="text-sm">{message.specialContent.data.description}</div>
+      //       {message.specialContent.data.url && (
+      //         <div className="mt-2">
+      //           <Image 
+      //             src={message.specialContent.data.url} 
+      //             alt={message.specialContent.data.description || 'Diagrama'} 
+      //             width={500} 
+      //             height={300} 
+      //             className="rounded-md object-contain" 
+      //           />
+      //         </div>
+      //       )}
+      //     </div>
+      //   );
       default:
         return null;
     }

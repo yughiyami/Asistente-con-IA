@@ -174,7 +174,7 @@ export default function useLogic(){
     pending.current = false
   }
 
-
+  const Marquee = "marquee" as any
   const Component = (
     <Dialog open={isOpen} onOpenChange={close}>
       <DialogContent>
@@ -190,11 +190,11 @@ export default function useLogic(){
               <CardDescription>
                 {
                   finalResult ?
-                  <marquee
+                  <Marquee
                     className="text-xl text-white"
                   >
                     {finalResult}
-                  </marquee> :
+                  </Marquee> :
                   ""
                 }
                 <div

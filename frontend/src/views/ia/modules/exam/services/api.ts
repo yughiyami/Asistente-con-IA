@@ -1,5 +1,6 @@
-import { Exam, ExamResult } from "@/types";
+import { ExamResult } from "@/types";
 import api from "@/views/ia/service/api";
+import { ExamAdapter } from "./exam.service";
 
 
 interface generateExamProps {
@@ -15,7 +16,7 @@ interface validateExamProps {
 }
 // Servicios para exámenes
 export const examService = {
-  generateExam: async ({...props}: generateExamProps): Promise<Exam> => {
+  generateExam: async ({...props}: generateExamProps): Promise<ExamAdapter> => {
     const response = await api.post(`/exam/generate`, props);
     return response.data;
   },

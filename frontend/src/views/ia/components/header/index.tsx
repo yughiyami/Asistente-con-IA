@@ -2,7 +2,6 @@ import React from 'react'
 import ModeSelector from './ModeSelector'
 import ThemeToggle from './ThemeToggle'
 import { FiCpu } from 'react-icons/fi'
-import { Switch } from '@/components/ui/switch'
 import ModelSwitch from './ModelSwitch'
 
 export default function Header() {
