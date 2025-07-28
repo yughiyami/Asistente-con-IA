@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Servicio de Redis
+  redis:
+    image: redis:7-alpine
+    container_name: arquitectura_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - arquitectura_network
+
+  # Servicio de la aplicación FastAPI
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arquitectura_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Sobrescribir configuración de Redis para usar el contenedor
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      # Volumen para documentos PDF
+      - ./documents:/app/documents
+      # Volumen para logs (opcional)
+      - ./logs:/app/logs
+      # Hot reload en desarrollo (opcional, comentar en producción)
+      - ./app:/app/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - arquitectura_network
+      - caddy_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Servicio opcional de Nginx para producción
+
+# Volúmenes para persistencia
+volumes:
+  redis_data:
+    driver: local
+
+# Red personalizada
+networks:
+  arquitectura_network:
+    driver: bridge
+  caddy_network:
+    external: true
