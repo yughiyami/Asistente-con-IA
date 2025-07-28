@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/store';
 import Message from './Message';
-import LoadingMessage from './LoadingMessage';
+import LoadingMessage from '../../modules/chat/components/LoadingMessage';
+// import LoadingMessage from './LoadingMessage';
 
 export default function MessageList() {
   const { messages, loading } = useAppStore();

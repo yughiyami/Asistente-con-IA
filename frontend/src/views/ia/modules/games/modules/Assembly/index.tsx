@@ -126,7 +126,7 @@ export default function useAssembly(){
 
   }
 
-
+  const Marquee = "marquee" as any
   const Component = (
     <Dialog open={isOpen} onOpenChange={close}>
       <DialogContent>
@@ -145,11 +145,11 @@ export default function useAssembly(){
               <CardDescription>
                 {
                   finalResult ?
-                  <marquee
+                  <Marquee
                     className="text-md text-white"
                   >
                     {finalResult}
-                  </marquee> :
+                  </Marquee> :
                   ""
                 }
                 <div

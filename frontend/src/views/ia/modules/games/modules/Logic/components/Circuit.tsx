@@ -75,7 +75,7 @@ export default function Circuit({inputs, output, gates}: CircuitProps) {
   }));
   
   // Organize gates by levels (depth in the circuit)
-  const organizeGatesByLevels = (gates: typeof gates) => {
+  const organizeGatesByLevels = (gates: { id: string; type: "AND" | "OR" | "XOR" | "NAND" | "XNOR" | "NOR" | "NOT"; inputs: string[]; }[]) => {
     const levels: string[][] = [];
     
     // Helper function to calculate gate level

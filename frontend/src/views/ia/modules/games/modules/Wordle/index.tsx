@@ -1,7 +1,7 @@
 
 import { Card, CardDescription, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import React, { useEffect, useMemo, useRef } from "react"
+import React, { useEffect, useRef } from "react"
 import WordBlock from "../custom/WordBlock"
 import { CreateWordleGame, GuessWordleWord } from "./services/Wordle"
 import ReactMarkdown from 'react-markdown';
@@ -20,7 +20,7 @@ export default function useWordle(){
   const [isOpen, setIsOpen] = React.useState(false)
   
   const [wordSize, setWordSize] = React.useState<number>(5)
-  const [maxAttempts, setMaxAttempts] = React.useState<number>(3)
+  const [ , setMaxAttempts] = React.useState<number>(3)
   const [cursor, setCursor] = React.useState(0)
 
   const [game_id, setGameId] = React.useState<string>("")
@@ -30,18 +30,6 @@ export default function useWordle(){
 
   const [topic, setTopic] = React.useState("procesador")
   const [difficulty, setDifficulty] = React.useState("medium")
-
-
-  const newAttempt = useMemo(() => {
-    const a : WordleAttempt = []
-    for(let i = 0; i < wordSize; i++){
-      a.push({
-        value : "",
-        status: "none"
-      })
-    }
-    return a
-  }, [wordSize])
 
   const [attemps, setAttemps] = React.useState<WordleAttempt[]>([])
   const [attemp, setAttemp] = React.useState<number>(0)
@@ -161,6 +149,7 @@ export default function useWordle(){
 
   }
 
+  const Marquee = "marquee" as any
 
   const Component = (
     <Dialog open={isOpen} onOpenChange={close}>
@@ -174,11 +163,11 @@ export default function useWordle(){
               <CardDescription>
                 {
                   finalResult ?
-                  <marquee
+                  <Marquee
                     className="text-xl text-white"
                   >
                     {finalResult}
-                  </marquee> :
+                  </Marquee> :
                   ""
                 }
                 <div

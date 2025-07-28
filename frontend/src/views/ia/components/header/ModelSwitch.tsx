@@ -19,7 +19,7 @@ export default function ModelSwitch() {
         }
 
         fetchModelStatus();
-    }, []);
+    }, [setModelMode]);
 
     function handleToggle() {
         if (isPending.current) return;
