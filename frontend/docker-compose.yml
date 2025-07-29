@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Servicio de Redis
+  # Servicio de la aplicación Frontend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arquitectura_frontend
+    restart: unless-stopped
+    expose:
+      - "3100"
+    env_file:
+      - .env
+    # environment:
+    volumes:
+      # Volumen para documentos PDF
+      # - ./documents:/app/documents
+      # Volumen para logs (opcional)
+      # - ./logs:/app/logs
+      # Hot reload en desarrollo (opcional, comentar en producción)
+      # - ./app:/app/app
+      - .next:/app/.next
+    networks:
+      - caddy_network
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+
+  # Servicio opcional de Nginx para producción
+
+# Volúmenes para persistencia
+
+# Red personalizada
+networks:
+  caddy_network:
+    external: true
