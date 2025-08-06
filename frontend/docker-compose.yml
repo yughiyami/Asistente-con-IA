@@ -39,4 +39,4 @@ services:
 networks:
   caddy_network:
     external: true
-    # name: "dokploy-network"
+    name: "dokploy-network"
