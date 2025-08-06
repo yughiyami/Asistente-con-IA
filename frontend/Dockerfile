@@ -2,11 +2,11 @@ FROM node:lts-bookworm
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY . .
 
 RUN npm install
 
-COPY .next .next
+RUN npm run build
 
 EXPOSE 3100
 
