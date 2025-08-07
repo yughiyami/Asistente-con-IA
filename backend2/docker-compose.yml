@@ -32,10 +32,28 @@ services:
     #   - .env
     environment:
       # Sobrescribir configuración de Redis para usar el contenedor
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - HOST=0.0.0.0
-      - PORT=8000
+      # - REDIS_HOST=redis
+      # - REDIS_PORT=6379
+      # - HOST=0.0.0.0
+      # - PORT=8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DB=${REDIS_DB}
+
+      - APP_NAME=${APP_NAME}
+      - APP_VERSION=${APP_VERSION}
+      - DEBUG=${DEBUG}
+      - HOST=${HOST}
+      - PORT=${PORT}
+
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      
+      - SESSION_EXPIRE_MINUTES=${60}
+      
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
     volumes:
       # Volumen para documentos PDF
       - ./documents:/app/documents
