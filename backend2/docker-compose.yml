@@ -51,7 +51,7 @@ services:
 
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       
-      - SESSION_EXPIRE_MINUTES=${60}
+      - SESSION_EXPIRE_MINUTES=${SESSION_EXPIRE_MINUTES}
       
       - GCP_PROJECT_ID=${GCP_PROJECT_ID}
     volumes:
