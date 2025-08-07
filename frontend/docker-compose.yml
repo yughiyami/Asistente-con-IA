@@ -26,6 +26,13 @@ services:
       # - .next:/app/.next
     networks:
       - caddy_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai-assistant-frontend.rule=Host(`asistente.main.scn.quest`)"
+      - "traefik.http.routers.ai-assistant-frontend.entrypoints=websecure"
+      - "traefik.http.routers.ai-assistant-frontend.tls.certResolver=letsencrypt"
+      - "traefik.http.services.ai-assistant-frontend.loadbalancer.server.port=3100"
+    
     # healthcheck:
     #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
     #   interval: 30s
